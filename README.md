@@ -114,7 +114,7 @@ Each card has a switch on the right; open the card for its settings.
 
 | Module | When to use it | Main settings |
 |---|---|---|
-| **1 Stand counting** | Early season, before plants touch (cover below ~35–60 %). Closed canopies are reported as *not estimable* rather than given a wrong count. | method (object area or NDVI peaks), minimum plant size, single-plant area (blank = learned from open plots) |
+| **1 Stand counting** | Early season, before plants touch (cover below ~35–60 %). Closed canopies are reported as *not estimable* rather than given a wrong count. Three methods: *object area* (fast, splits clumps by a learned single-plant area), *NDVI peaks*, and **MobileSAM** (AI segmentation that outlines each plant; see below). | method, minimum plant size, single-plant area (blank = learned from open plots); for SAM: prompted/automatic mode, max plant area, clump splitting, number of QC overlays |
 | **2 Canopy cover & volume** | Any time; needs the DSM for volume. | none |
 | **3 Harvestable area** | Canopy area ÷ plot area; set a cutting height to count only canopy taller than it. | minimum height (m) |
 | **4 Plant / canopy length** | Row plots: canopy length along the plot's long axis, row coverage, gaps. | gap length to report |
@@ -203,8 +203,12 @@ blocks); choose them in section 2. After the run, read *Stats_Omnibus* (is there
 the bare-soil mask should cover alleys and gaps; if the field is a closed canopy with no visible soil, set the
 *Bare-soil NDVI threshold* in the last advanced card, or give the app a bare-soil flight's DSM as terrain.
 
-**Early stand counts.** Fly before canopy closure. Switch on module 1, leave *single-plant area* blank the first time
-and read `SinglePlantArea_cm2` in *Canopy_Structure*; if it looks wrong for your crop, type the right value and rerun.
+**Early stand counts.** Fly before canopy closure. Switch on module 1 and choose **MobileSAM segmentation** (click
+*Install MobileSAM* once; it needs internet for the ~240 MB download). Run, then open the *sam_qc* overlays in the
+gallery: every counted plant has a yellow outline. If large patches are outlined as one plant, keep *Split clump masks*
+on and check `SinglePlantArea_cm2` in *Canopy_Structure*; type the right value for your crop if the learned one is off.
+Without MobileSAM, the *object area* method does the same with plain image processing (less precise where plants touch).
+On a CPU, SAM takes 5–10 s per plot; on an NVIDIA GPU (install PyTorch with CUDA) well under a second.
 
 **Water stress.** Switch on module 6, pick the crop, leave air temperature blank (it comes from the weather service at
 flight time) unless you logged it on site, in which case type it. Use the image-based `CWSI_empirical_mean` and
@@ -264,7 +268,7 @@ the GPU path is implemented but was **not run here**.
 
 | Module | Method |
 |---|---|
-| Stand count | Plant objects (connected components). Clumps are split by a field-wide single-plant area learned from open plots. Plots with closed canopy (>60 % cover) are reported as *not estimable* rather than given a wrong number. An NDVI-peak method is also available. |
+| Stand count | Three methods. *Object area*: connected components, clumps split by a field-wide single-plant area learned from open plots. *NDVI peaks*: local maxima with a minimum spacing. **MobileSAM** (Zhang et al. 2023, the 10 MB "Segment Anything" distillation): each NDVI peak inside the plot becomes a point prompt; the smallest SAM mask covering it is kept, duplicates (IoU > 0.5), soil-dominated and out-of-size masks are dropped; masks larger than 1.8 × the single-plant area are counted as clumps (area ÷ single-plant area). An automatic-grid mode needs no seeds. Instances, prompts and mean mask area are reported, and QC overlays (`figures/08_canopy_structure/sam_qc/`) show every outline. Optional install from the app (PyTorch CPU build ≈ 200 MB + 40 MB weights); uses CUDA when PyTorch has it. Closed canopies (>60 % cover) are reported as *not estimable* with every method. |
 | Canopy cover / volume | Vegetation fraction; Σ(height × pixel area) |
 | Harvestable area | Canopy area (optionally taller than a cutting height) ÷ plot area |
 | Plant / canopy length | Canopy extent along the plot's long axis, row coverage %, gaps longer than a threshold, mean and max plant-object length |

@@ -229,6 +229,17 @@ class Handler(BaseHTTPRequestHandler):
                     return self._send(200, {"ok": True, "bands": ix_mod.validate_formula(body["formula"])})
                 except Exception as e:
                     return self._send(200, {"ok": False, "error": str(e)})
+            if u.path == "/api/sam_status":
+                from engine import sam_count
+                return self._send(200, sam_count.status())
+            if u.path == "/api/sam_install":
+                from engine import sam_count
+                logs = []
+                try:
+                    st = sam_count.install(log=logs.append)
+                    return self._send(200, {"ok": st["ready"], "status": st, "log": logs})
+                except Exception as e:
+                    return self._send(200, {"ok": False, "error": f"{type(e).__name__}: {e}", "log": logs})
             if u.path == "/api/gpu_refresh":
                 bk = get_backend(prefer_gpu=True, refresh=True)
                 return self._send(200, bk.info())

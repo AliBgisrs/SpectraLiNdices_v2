@@ -82,7 +82,7 @@ def single_plant_area_px(stand_records, px, user_cm2=None, open_cover=35.0):
     return float(np.median(small)), "median of smaller half of objects (no open plots - low confidence)"
 
 
-def stand_count(rec, px, single_px, method="blob", closed_cover=60.0, force=False):
+def stand_count(rec, px, single_px, method="blob", closed_cover=60.0, force=False, sam_split=True):
     """Second pass: count plants of one plot from its objects and the field single-plant area."""
     pa_cm2 = px * px * 1e4
     areas, cover, area_m2 = rec["areas_px"], rec["cover"], rec["area_m2"]
@@ -92,7 +92,16 @@ def stand_count(rec, px, single_px, method="blob", closed_cover=60.0, force=Fals
     if cover > closed_cover and not force:
         out["StandCount_reliability"] = f"not estimable: canopy closed ({cover:.0f}% cover)"
         return out
-    if method == "peaks" and rec.get("n_peaks") is not None:
+    if method == "sam" and rec.get("n_sam") is not None:
+        info = rec.get("sam_info") or {}
+        out["SAM_instances"] = int(rec["n_sam"])
+        out["SAM_prompts"] = info.get("prompts")
+        out["SAM_mean_mask_area_cm2"] = info.get("mean_mask_area_cm2")
+        if sam_split and len(areas):  # a mask much larger than a single plant is a clump -> split by area
+            count = int(np.sum(np.where(areas > 1.8 * single_px, np.round(areas / max(single_px, 1.0)), 1)))
+        else:
+            count = int(rec["n_sam"])
+    elif method == "peaks" and rec.get("n_peaks") is not None:
         count = rec["n_peaks"]
     else:
         count = int(np.sum(np.maximum(1, np.round(areas / max(single_px, 1.0))))) if len(areas) else 0
@@ -101,7 +110,7 @@ def stand_count(rec, px, single_px, method="blob", closed_cover=60.0, force=Fals
     if cover > closed_cover:
         out["StandCount_reliability"] = "low: canopy closed (forced)"
     elif cover > 35:
-        out["StandCount_reliability"] = "moderate: plants touching"
+        out["StandCount_reliability"] = "moderate: plants touching" + (" (SAM separates touching plants)" if method == "sam" else "")
     return out
 
 

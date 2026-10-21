@@ -788,6 +788,13 @@ def make_all(job, out, plots, tables, var_names, sel, stat_res, pair_res, corr, 
         if "CanopyCover_pct" in adv_df and "PlantHeight_m" in mean:
             T(fig_scatter, (adv_df["CanopyCover_pct"], mean["PlantHeight_m"], "Canopy cover (%)", "Plant height (m)",
                             "cover_vs_height.png", out, dpi), "Canopy cover vs height", "Canopy structure")
+    qc_dir = os.path.join(out, FIG_FOLDERS["Canopy structure"], "sam_qc")
+    if os.path.isdir(qc_dir):
+        for fn in sorted(os.listdir(qc_dir)):
+            if fn.endswith(".png"):
+                p = os.path.join(qc_dir, fn)
+                recs.append({"path": p, "thumb": _thumb(p, out), "title": fn[:-4].replace("_", " ") + " (MobileSAM QC)",
+                             "group": "Canopy structure", "var": "StandCount"})
     if "gdd" in groups and getattr(job, "weather", None) is not None and gdd_df is not None:
         T(fig_gdd, (job.weather, gdd_df, None, out, dpi), "Growing degree days", "GDD")
     if "field" in groups and merged is not None:

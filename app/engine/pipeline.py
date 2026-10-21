@@ -83,7 +83,26 @@ class PlotProcessor:
             c = self.ctx
             self.local.ms = rasterio.open(c["ms_path"])
             self.local.dsm = rasterio.open(c["dsm_path"]) if c["dsm_path"] else None
+            self.local.rgb = rasterio.open(c["rgb_path"]) if c.get("rgb_path") else None
         return self.local.ms, self.local.dsm
+
+    def _rgb_chip(self, ms, win, h, w, bands_np):
+        """uint8 RGB chip of the plot window: the RGB orthomosaic if present, else NIR/R/G false colour."""
+        rgb_ds = getattr(self.local, "rgb", None)
+        if rgb_ds is not None:
+            rwin = rasterio.windows.from_bounds(*rasterio.windows.bounds(win, ms.transform), transform=rgb_ds.transform)
+            a = rgb_ds.read([1, 2, 3], window=rwin, out_shape=(3, h, w), boundless=True, fill_value=0,
+                            resampling=Resampling.bilinear)
+            return np.ascontiguousarray(np.moveaxis(a, 0, -1)).astype(np.uint8)
+        chans = [bands_np.get(k) for k in ("NIR", "R", "G")]
+        out = np.zeros((h, w, 3), np.uint8)
+        for i, ch in enumerate(chans):
+            if ch is None:
+                continue
+            v = np.where(np.isfinite(ch), ch, 0)
+            lo, hi = np.percentile(v[v > 0], [2, 98]) if (v > 0).any() else (0, 1)
+            out[..., i] = (np.clip((v - lo) / max(hi - lo, 1e-6), 0, 1) * 255).astype(np.uint8)
+        return out
 
     def close(self):
         pass
@@ -244,6 +263,22 @@ class PlotProcessor:
             lab, areas, n_peaks = advanced.stand_objects(veg, ndvi_np, px, c["stand_method"], c["min_area_cm2"],
                                                          c["min_spacing_cm"])
             out["stand"] = {"areas_px": areas, "n_peaks": n_peaks, "cover": cover, "area_m2": area_m2}
+            if c["stand_method"] == "sam" and (cover <= c["closed_cover"] or c["stand_force"]):
+                from . import sam_count
+                chip = self._rgb_chip(ms, win, h, w, bands_np)
+                n_sam, lab_sam, info = sam_count.count_plot(
+                    chip, veg & inside, ndvi_np, px, c["sam_mode"], c["min_spacing_cm"], c["min_area_cm2"],
+                    c["sam_max_area_cm2"], device_pref="cuda" if c["bk"].is_gpu or c["sam_gpu"] else "auto")
+                out["stand"].update(n_sam=n_sam, sam_info=info, areas_px=info["areas_px"])  # SAM masks define plant size
+                lab = lab_sam  # SAM instances also feed the plant-length metrics
+                if c["sam_qc_dir"] and self.ctx["sam_qc_count"][0] < c["sam_qc_max"]:
+                    with self.ctx["sam_qc_lock"]:
+                        if self.ctx["sam_qc_count"][0] < c["sam_qc_max"]:
+                            self.ctx["sam_qc_count"][0] += 1
+                            qc = os.path.join(c["sam_qc_dir"], f"sam_plot_{row.PLOTID}.png")
+                            sam_count.overlay(chip, lab_sam, qc, f"Plot {row.PLOTID}: {n_sam} plants (MobileSAM, "
+                                                                 f"{info.get('prompts') or 'auto'} prompts)")
+                            out["sam_qc"] = qc
         if c["length_on"]:
             if lab is None:
                 lab, _, _ = advanced._clean(veg, px, c["min_area_cm2"])
@@ -401,6 +436,15 @@ def run(job: Job):
         "harvest_min_h": float(_dget(adv, "harvest.min_height", 0.0)),
         "stand_on": _dget(adv, "stand_count.enabled", False),
         "stand_method": _dget(adv, "stand_count.method", "blob"),
+        "rgb_path": rgb_info["path"] if rgb_info else None,
+        "sam_mode": _dget(adv, "stand_count.sam_mode", "prompted"),
+        "sam_max_area_cm2": _dget(adv, "stand_count.max_area_cm2"),
+        "sam_gpu": bool(_dget(adv, "stand_count.sam_gpu", True)),
+        "closed_cover": float(_dget(adv, "stand_count.closed_cover", 60.0)),
+        "stand_force": bool(_dget(adv, "stand_count.force", False)),
+        "sam_qc_dir": None, "sam_qc_max": int(_dget(adv, "stand_count.qc_plots", 12)),
+        "sam_split": bool(_dget(adv, "stand_count.sam_split", True)),
+        "sam_qc_count": [0], "sam_qc_lock": threading.Lock(),
         "min_area_cm2": float(_dget(adv, "stand_count.min_area_cm2", 20.0)),
         "min_spacing_cm": float(_dget(adv, "stand_count.min_spacing_cm", 5.0)),
         "single_plant_cm2": _dget(adv, "stand_count.single_plant_area_cm2"),
@@ -412,6 +456,19 @@ def run(job: Job):
     }
     if ctx["single_plant_cm2"]:
         ctx["single_plant_cm2"] = float(ctx["single_plant_cm2"])
+    if ctx["sam_max_area_cm2"]:
+        ctx["sam_max_area_cm2"] = float(ctx["sam_max_area_cm2"])
+    if ctx["stand_on"] and ctx["stand_method"] == "sam":
+        from . import sam_count
+        sam_st = sam_count.status()
+        if not sam_st["ready"]:
+            job.log("MobileSAM not installed - falling back to the object-area method (install it in the app).")
+            ctx["stand_method"] = "blob"
+        else:
+            _, dev = sam_count.load("cuda" if bk.is_gpu or ctx["sam_gpu"] else "auto")
+            job.log(f"MobileSAM loaded on {dev} ({ctx['sam_mode']} mode)")
+            ctx["sam_qc_dir"] = os.path.join(fig_dir, "08_canopy_structure", "sam_qc")
+            os.makedirs(ctx["sam_qc_dir"], exist_ok=True)
     var_names = [BAND_VARS[k] for k in BAND_VARS if k in band_map] + [s["abbr"] for s in sel if not s.get("hidden")]
     if "T" in band_map:
         var_names += ["Thermal_C", "Tcanopy_C", "Tsoil_C"]
@@ -471,9 +528,10 @@ def run(job: Job):
         for r, rec in zip(results, recs):
             if rec:
                 r["advanced"].update(advanced.stand_count(rec, px, single, ctx["stand_method"],
-                                                          float(_dget(adv, "stand_count.closed_cover", 60.0)),
-                                                          bool(_dget(adv, "stand_count.force", False))))
+                                                          ctx["closed_cover"], ctx["stand_force"], ctx["sam_split"]))
                 r["advanced"]["SinglePlantArea_cm2"] = single * px * px * 1e4
+                r["advanced"]["StandCount_method"] = {"sam": "MobileSAM " + ctx["sam_mode"], "peaks": "NDVI peaks",
+                                                      "blob": "object area"}[ctx["stand_method"]]
     adv_df = pd.DataFrame([r["advanced"] for r in results], index=pd.Index(ids, name="PLOTID"))
     group_series, block_series = None, None
     if b.get("group_col"):

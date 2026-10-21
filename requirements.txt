@@ -16,3 +16,8 @@ pillow>=10
 #   pip install cupy-cuda12x          (NVIDIA, CUDA 12.x)  <- preferred
 #   pip install cupy-cuda11x          (NVIDIA, CUDA 11.x)
 #   pip install torch --index-url https://download.pytorch.org/whl/cu124   (PyTorch CUDA; also Apple MPS on macOS)
+
+# Optional MobileSAM stand counting (also installable from inside the app, Advanced -> Stand counting):
+#   pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu   (or a CUDA build from pytorch.org)
+#   pip install timm git+https://github.com/ChaoningZhang/MobileSAM.git
+#   weights (40 MB) are downloaded automatically to app/models/mobile_sam.pt
