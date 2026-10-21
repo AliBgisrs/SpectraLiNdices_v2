@@ -1,0 +1,18 @@
+# PlotSpectra - keep the repository small: source only
+.venv/
+dist/
+outputs/
+tests/out_*/
+__pycache__/
+*.pyc
+last_config.json
+# large data: publish as release assets or Git LFS, not in the repo
+inputFolder/
+*.tif
+*.tiff
+*.zip
+*.part[0-9][0-9]
+# any run output folder
+[Oo]utput/
+[Oo]utputs/
+.claude/

@@ -1,0 +1,18 @@
+# Core (CPU) - required
+numpy>=1.26
+pandas>=2.1
+scipy>=1.11
+rasterio>=1.3
+geopandas>=0.14
+pyogrio>=0.7
+shapely>=2.0
+pyproj>=3.6
+scikit-image>=0.22
+matplotlib>=3.8
+openpyxl>=3.1
+pillow>=10
+
+# Optional GPU acceleration - install ONE that matches your CUDA driver (the app detects it automatically):
+#   pip install cupy-cuda12x          (NVIDIA, CUDA 12.x)  <- preferred
+#   pip install cupy-cuda11x          (NVIDIA, CUDA 11.x)
+#   pip install torch --index-url https://download.pytorch.org/whl/cu124   (PyTorch CUDA; also Apple MPS on macOS)

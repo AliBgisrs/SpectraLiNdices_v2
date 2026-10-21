@@ -1,0 +1,137 @@
+[
+  {
+    "abbr": "NDVI",
+    "name": "Normalized Difference Vegetation Index",
+    "formula_python": "(NIR - R) / (NIR + R)",
+    "range": "[-1, 1]; green crop canopies typically 0.2-0.95 (saturates above LAI ~3)",
+    "sensitivity": "green biomass, canopy cover/vigour, LAI (low-moderate), yield proxy",
+    "reference": "Rouse, J.W., Haas, R.H., Schell, J.A., Deering, D.W. (1974). Monitoring vegetation systems in the Great Plains with ERTS. Third ERTS Symposium, NASA SP-351, Vol. 1, 309-317.",
+    "doi": null
+  },
+  {
+    "abbr": "NDRE",
+    "name": "Normalized Difference Red Edge index (red-edge NDVI)",
+    "formula_python": "(NIR - RE) / (NIR + RE)",
+    "range": "[-1, 1]; crop canopies typically 0.1-0.6 (depends on red-edge band centre)",
+    "sensitivity": "canopy chlorophyll, nitrogen status, less saturation than NDVI in dense canopies",
+    "reference": "Gitelson, A., Merzlyak, M.N. (1994). Spectral reflectance changes associated with autumn senescence of Aesculus hippocastanum L. and Acer platanoides L. leaves. J. Plant Physiol. 143, 286-292.",
+    "doi": "10.1016/S0176-1617(11)81633-0"
+  },
+  {
+    "abbr": "GNDVI",
+    "name": "Green Normalized Difference Vegetation Index",
+    "formula_python": "(NIR - G) / (NIR + G)",
+    "range": "[-1, 1]; crop canopies typically 0.3-0.9",
+    "sensitivity": "chlorophyll concentration, nitrogen status, biomass; wider dynamic range than NDVI at high LAI",
+    "reference": "Gitelson, A.A., Kaufman, Y.J., Merzlyak, M.N. (1996). Use of a green channel in remote sensing of global vegetation from EOS-MODIS. Remote Sens. Environ. 58, 289-298.",
+    "doi": "10.1016/S0034-4257(96)00072-7"
+  },
+  {
+    "abbr": "SAVI",
+    "name": "Soil-Adjusted Vegetation Index (L = 0.5)",
+    "formula_python": "1.5 * (NIR - R) / (NIR + R + 0.5)",
+    "range": "[-1, 1] for reflectance in 0-1; crop canopies typically 0.1-0.8",
+    "sensitivity": "green cover/biomass and LAI with reduced soil-background effect (sparse/early canopies)",
+    "reference": "Huete, A.R. (1988). A soil-adjusted vegetation index (SAVI). Remote Sens. Environ. 25, 295-309.",
+    "doi": "10.1016/0034-4257(88)90106-X"
+  },
+  {
+    "abbr": "RVI",
+    "name": "Ratio Vegetation Index / Simple Ratio (SR)",
+    "formula_python": "NIR / R",
+    "range": "[0, +inf); bare soil ~1-2, dense canopies ~8-30",
+    "sensitivity": "LAI, green biomass, canopy chlorophyll content; linear at high biomass (no saturation like NDVI)",
+    "reference": "Jordan, C.F. (1969). Derivation of leaf-area index from quality of light on the forest floor. Ecology 50, 663-666.",
+    "doi": "10.2307/1936256"
+  },
+  {
+    "abbr": "OSAVI",
+    "name": "Optimized Soil-Adjusted Vegetation Index",
+    "formula_python": "(NIR - R) / (NIR + R + 0.16)",
+    "range": "[-0.86, 0.86] for reflectance in 0-1 (x1.16 if the scaled variant is used); crops typically 0.1-0.8",
+    "sensitivity": "LAI, green cover, biomass with soil-background correction; denominator of TCARI/OSAVI",
+    "reference": "Rondeaux, G., Steven, M., Baret, F. (1996). Optimization of soil-adjusted vegetation indices. Remote Sens. Environ. 55, 95-107.",
+    "doi": "10.1016/0034-4257(95)00186-7"
+  },
+  {
+    "abbr": "NGRDI",
+    "name": "Normalized Green-Red Difference Index (also GRVI)",
+    "formula_python": "(G - R) / (G + R)",
+    "range": "[-1, 1]; green vegetation >0 (typically 0-0.3), soil/senescent tissue <0",
+    "sensitivity": "green canopy fraction, early-season biomass, phenology/senescence, vegetation segmentation",
+    "reference": "Tucker, C.J. (1979). Red and photographic infrared linear combinations for monitoring vegetation. Remote Sens. Environ. 8, 127-150. (Named NGRDI by Hunt et al. 2005, Precis. Agric. 6, 359-378, doi:10.1007/s11119-005-2324-5.)",
+    "doi": "10.1016/0034-4257(79)90013-0"
+  },
+  {
+    "abbr": "CIre",
+    "name": "Red-edge Chlorophyll Index (CI red-edge)",
+    "formula_python": "NIR / RE - 1",
+    "range": "[-1, +inf); crop canopies typically 0.5-10",
+    "sensitivity": "canopy chlorophyll content, nitrogen uptake, GPP; near-linear with chlorophyll (no saturation)",
+    "reference": "Gitelson, A.A., Gritz, Y., Merzlyak, M.N. (2003). Relationships between leaf chlorophyll content and spectral reflectance and algorithms for non-destructive chlorophyll assessment in higher plant leaves. J. Plant Physiol. 160, 271-282; canopy form: Gitelson et al. (2005) Geophys. Res. Lett. 32, L08403, doi:10.1029/2005GL022688.",
+    "doi": "10.1078/0176-1617-00887"
+  },
+  {
+    "abbr": "CIg",
+    "name": "Green Chlorophyll Index (CI green)",
+    "formula_python": "NIR / G - 1",
+    "range": "[-1, +inf); crop canopies typically 1-15",
+    "sensitivity": "canopy chlorophyll content, nitrogen status, GPP/productivity, biomass",
+    "reference": "Gitelson, A.A., Gritz, Y., Merzlyak, M.N. (2003). J. Plant Physiol. 160, 271-282; canopy form: Gitelson et al. (2005) Geophys. Res. Lett. 32, L08403, doi:10.1029/2005GL022688.",
+    "doi": "10.1078/0176-1617-00887"
+  },
+  {
+    "abbr": "MSAVI2",
+    "name": "Modified Soil-Adjusted Vegetation Index (self-adjusting L, MSAVI2)",
+    "formula_python": "(2 * NIR + 1 - np.sqrt((2 * NIR + 1) ** 2 - 8 * (NIR - R))) / 2",
+    "range": "[-1, 1]; crop canopies typically 0.1-0.8",
+    "sensitivity": "green cover, LAI and biomass in sparse canopies with strong soil background",
+    "reference": "Qi, J., Chehbouni, A., Huete, A.R., Kerr, Y.H., Sorooshian, S. (1994). A modified soil adjusted vegetation index. Remote Sens. Environ. 48, 119-126.",
+    "doi": "10.1016/0034-4257(94)90134-1"
+  },
+  {
+    "abbr": "DVI",
+    "name": "Difference Vegetation Index",
+    "formula_python": "NIR - R",
+    "range": "[-1, 1] for reflectance in 0-1; crop canopies typically 0.1-0.6",
+    "sensitivity": "green biomass, LAI, canopy cover; sensitive to soil background and illumination",
+    "reference": "Tucker, C.J. (1979). Red and photographic infrared linear combinations for monitoring vegetation. Remote Sens. Environ. 8, 127-150.",
+    "doi": "10.1016/0034-4257(79)90013-0"
+  },
+  {
+    "abbr": "MCARI",
+    "name": "Modified Chlorophyll Absorption in Reflectance Index",
+    "formula_python": "((RE - R) - 0.2 * (RE - G)) * (RE / R)",
+    "range": "unbounded (can be negative); narrow-band crops typically 0-1.5, broad-band UAV values lower",
+    "sensitivity": "leaf chlorophyll (confounded by LAI/soil); used with OSAVI to isolate chlorophyll",
+    "reference": "Daughtry, C.S.T., Walthall, C.L., Kim, M.S., Brown de Colstoun, E., McMurtrey, J.E. (2000). Estimating corn leaf chlorophyll concentration from leaf and canopy reflectance. Remote Sens. Environ. 74, 229-239.",
+    "doi": "10.1016/S0034-4257(00)00113-9"
+  },
+  {
+    "abbr": "EVI2",
+    "name": "Two-band Enhanced Vegetation Index (EVI without blue)",
+    "formula_python": "2.5 * (NIR - R) / (NIR + 2.4 * R + 1)",
+    "range": "[-0.74, 1.25] for reflectance in 0-1; crop canopies typically 0.1-0.9",
+    "sensitivity": "green biomass, LAI, canopy structure; less saturation than NDVI; blue-free substitute for EVI",
+    "reference": "Jiang, Z., Huete, A.R., Didan, K., Miura, T. (2008). Development of a two-band enhanced vegetation index without a blue band. Remote Sens. Environ. 112, 3833-3845.",
+    "doi": "10.1016/j.rse.2008.06.006"
+  },
+  {
+    "abbr": "TCARI/OSAVI",
+    "name": "Transformed Chlorophyll Absorption in Reflectance Index / Optimized SAVI ratio",
+    "formula_python": "(3 * ((RE - R) - 0.2 * (RE - G) * (RE / R))) / ((1 + 0.16) * (NIR - R) / (NIR + R + 0.16))",
+    "range": "unbounded (undefined where OSAVI ~0, i.e. bare soil); crop canopies typically 0-1; LOWER value = MORE chlorophyll",
+    "sensitivity": "leaf chlorophyll content / N status, minimised LAI and soil effects; water/nutrient stress",
+    "reference": "Haboudane, D., Miller, J.R., Tremblay, N., Zarco-Tejada, P.J., Dextraze, L. (2002). Integrated narrow-band vegetation indices for prediction of crop chlorophyll content for application to precision agriculture. Remote Sens. Environ. 81, 416-426.",
+    "doi": "10.1016/S0034-4257(02)00018-4"
+  },
+  {
+    "abbr": "MTCI",
+    "name": "MERIS Terrestrial Chlorophyll Index",
+    "formula_python": "(NIR - RE) / (RE - R)",
+    "range": "unbounded (denominator -> 0 over soil/water); green canopies typically 0.5-6",
+    "sensitivity": "canopy chlorophyll content, nitrogen status, red-edge position proxy; little saturation",
+    "reference": "Dash, J., Curran, P.J. (2004). The MERIS terrestrial chlorophyll index. Int. J. Remote Sens. 25, 5403-5413.",
+    "doi": "10.1080/0143116042000274015"
+  }
+]

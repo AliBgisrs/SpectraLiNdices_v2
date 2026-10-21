@@ -1,0 +1,791 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PlotSpectra</title>
+<style>
+:root{
+  --bg:#f4f6f3; --panel:#ffffff; --ink:#1d2a24; --muted:#5f6f67; --line:#dfe5e0; --soft:#eef2ee;
+  --brand:#1f6f4a; --brand-2:#2f8f63; --brand-ink:#ffffff; --accent:#c9822b; --danger:#b3261e; --ok:#1f7a45;
+  --warn-bg:#fff6e5; --warn-ink:#7a4b00; --info-bg:#eaf3ff; --info-ink:#1d4f91;
+  --shadow:0 1px 2px rgba(16,32,24,.06),0 4px 16px rgba(16,32,24,.06); --radius:12px;
+  --mono:ui-monospace,SFMono-Regular,Consolas,"Liberation Mono",monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#101513; --panel:#171e1b; --ink:#e3ebe6; --muted:#9aaba2; --line:#2a3530; --soft:#1e2723;
+    --brand:#4cb487; --brand-2:#5fc697; --brand-ink:#08130e; --accent:#e0a04d; --danger:#f2766d; --ok:#5fc697;
+    --warn-bg:#2d2412; --warn-ink:#f1c27a; --info-bg:#132235; --info-ink:#9cc3f5; --shadow:none;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#101513; --panel:#171e1b; --ink:#e3ebe6; --muted:#9aaba2; --line:#2a3530; --soft:#1e2723;
+  --brand:#4cb487; --brand-2:#5fc697; --brand-ink:#08130e; --accent:#e0a04d; --danger:#f2766d; --ok:#5fc697;
+  --warn-bg:#2d2412; --warn-ink:#f1c27a; --info-bg:#132235; --info-ink:#9cc3f5; --shadow:none;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.5 "Segoe UI",system-ui,-apple-system,Roboto,sans-serif}
+a{color:var(--brand)}
+header{position:sticky;top:0;z-index:20;background:var(--panel);border-bottom:1px solid var(--line);
+  display:flex;align-items:center;gap:16px;padding:10px 20px}
+.logo{display:flex;align-items:center;gap:10px;font-weight:700;font-size:17px;letter-spacing:.2px}
+.logo svg{width:28px;height:28px}
+.logo small{display:block;font-weight:400;font-size:12px;color:var(--muted);letter-spacing:0}
+.spacer{flex:1}
+.badge{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;font-size:12px;
+  background:var(--soft);border:1px solid var(--line);white-space:nowrap}
+.badge .dot{width:8px;height:8px;border-radius:50%;background:var(--muted)}
+.badge.gpu .dot{background:var(--ok)} .badge.cpu .dot{background:var(--accent)}
+.iconbtn{background:none;border:1px solid var(--line);color:var(--ink);border-radius:8px;padding:5px 9px;cursor:pointer}
+.layout{display:grid;grid-template-columns:230px minmax(0,1fr);gap:20px;max-width:1380px;margin:0 auto;padding:20px}
+nav.steps{position:sticky;top:76px;align-self:start;display:flex;flex-direction:column;gap:4px}
+nav.steps a{display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:10px;text-decoration:none;color:var(--ink)}
+nav.steps a:hover{background:var(--soft)}
+nav.steps a.active{background:var(--brand);color:var(--brand-ink)}
+nav.steps .n{width:22px;height:22px;border-radius:50%;display:grid;place-items:center;font-size:12px;font-weight:700;
+  background:var(--soft);color:var(--muted);flex:none}
+nav.steps a.active .n{background:rgba(255,255,255,.25);color:inherit}
+nav.steps a.done .n{background:var(--ok);color:#fff}
+nav.steps .sub{font-size:11px;opacity:.75;display:block;line-height:1.2}
+main{min-width:0}
+section.card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);
+  padding:20px 22px;margin-bottom:18px}
+section.card>h2{margin:0 0 4px;font-size:18px;display:flex;align-items:center;gap:10px}
+section.card>h2 .pill{font-size:11px;font-weight:600;padding:2px 8px;border-radius:999px;background:var(--soft);color:var(--muted)}
+.lead{color:var(--muted);margin:0 0 16px}
+.grid{display:grid;gap:14px}
+.g2{grid-template-columns:repeat(2,minmax(0,1fr))} .g3{grid-template-columns:repeat(3,minmax(0,1fr))}
+.g4{grid-template-columns:repeat(4,minmax(0,1fr))}
+label.f{display:flex;flex-direction:column;gap:5px;font-size:12.5px;font-weight:600;color:var(--muted)}
+label.f .req{color:var(--danger)}
+input[type=text],input[type=number],input[type=date],input[type=datetime-local],select,textarea{
+  font:inherit;color:var(--ink);background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:8px 10px;width:100%}
+input:focus,select:focus,textarea:focus{outline:2px solid color-mix(in srgb,var(--brand) 40%,transparent);border-color:var(--brand)}
+.pathrow{display:flex;gap:8px}
+.pathrow input{flex:1;font-family:var(--mono);font-size:12.5px}
+.btn{font:inherit;font-weight:600;border-radius:8px;padding:8px 14px;border:1px solid var(--line);background:var(--soft);
+  color:var(--ink);cursor:pointer;white-space:nowrap}
+.btn:hover{filter:brightness(.97)}
+.btn.primary{background:var(--brand);border-color:var(--brand);color:var(--brand-ink)}
+.btn.big{padding:12px 26px;font-size:15px}
+.btn.danger{background:none;color:var(--danger);border-color:var(--danger)}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.note{font-size:12.5px;padding:10px 12px;border-radius:8px;background:var(--info-bg);color:var(--info-ink)}
+.note.warn{background:var(--warn-bg);color:var(--warn-ink)}
+.note.err{background:color-mix(in srgb,var(--danger) 12%,transparent);color:var(--danger)}
+.muted{color:var(--muted)} .mono{font-family:var(--mono);font-size:12px}
+table.kv{width:100%;border-collapse:collapse;font-size:13px}
+table.kv td,table.kv th{padding:6px 8px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+table.kv th{color:var(--muted);font-weight:600;width:190px}
+.scroll{overflow:auto;max-height:240px;border:1px solid var(--line);border-radius:8px}
+table.data{border-collapse:collapse;font-size:12px;width:100%}
+table.data th,table.data td{padding:5px 8px;border-bottom:1px solid var(--line);white-space:nowrap;text-align:left}
+table.data th{position:sticky;top:0;background:var(--soft)}
+/* switches */
+.switch{display:inline-flex;align-items:center;gap:10px;cursor:pointer;user-select:none;font-weight:600}
+.switch input{display:none}
+.switch .t{width:38px;height:22px;border-radius:999px;background:var(--line);position:relative;transition:.15s;flex:none}
+.switch .t::after{content:"";position:absolute;top:3px;left:3px;width:16px;height:16px;border-radius:50%;background:#fff;transition:.15s;
+  box-shadow:0 1px 2px rgba(0,0,0,.3)}
+.switch input:checked+.t{background:var(--brand)}
+.switch input:checked+.t::after{left:19px}
+/* index chips */
+.chips{display:grid;grid-template-columns:repeat(auto-fill,minmax(205px,1fr));gap:8px}
+.chip{border:1px solid var(--line);border-radius:10px;padding:8px 10px;display:flex;gap:8px;align-items:flex-start;cursor:pointer;background:var(--panel)}
+.chip:hover{border-color:var(--brand)}
+.chip.on{border-color:var(--brand);background:color-mix(in srgb,var(--brand) 8%,var(--panel))}
+.chip.dis{opacity:.45;cursor:not-allowed}
+.chip input{margin-top:3px}
+.chip b{font-size:13px} .chip .rk{font-size:10px;font-weight:700;color:var(--brand);margin-left:4px}
+.chip .d{font-size:11px;color:var(--muted);line-height:1.3}
+.chip code{font-size:10.5px;color:var(--muted);font-family:var(--mono);word-break:break-all}
+/* advanced cards */
+details.adv{border:1px solid var(--line);border-radius:10px;margin-bottom:10px;background:var(--panel)}
+details.adv>summary{list-style:none;cursor:pointer;padding:12px 14px;display:flex;align-items:center;gap:12px}
+details.adv>summary::-webkit-details-marker{display:none}
+details.adv>summary .ttl{font-weight:700}
+details.adv>summary .ds{font-size:12px;color:var(--muted)}
+details.adv>summary .chev{margin-left:auto;transition:.15s;color:var(--muted)}
+details.adv[open]>summary .chev{transform:rotate(90deg)}
+details.adv .body{padding:4px 14px 14px;border-top:1px dashed var(--line)}
+.advnum{width:26px;height:26px;border-radius:8px;display:grid;place-items:center;background:var(--soft);font-weight:700;font-size:12px;flex:none}
+.adv.enabled .advnum{background:var(--brand);color:var(--brand-ink)}
+/* progress */
+.progress{height:12px;border-radius:999px;background:var(--soft);overflow:hidden;border:1px solid var(--line)}
+.progress>div{height:100%;width:0;background:linear-gradient(90deg,var(--brand),var(--brand-2));transition:width .4s}
+pre.log{background:#0f1512;color:#cfe3d8;border-radius:10px;padding:12px;height:260px;overflow:auto;font:12px/1.45 var(--mono);margin:0;white-space:pre-wrap}
+/* gallery */
+.tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
+.tab{padding:6px 12px;border-radius:999px;border:1px solid var(--line);background:var(--panel);cursor:pointer;font-size:13px}
+.tab.on{background:var(--brand);color:var(--brand-ink);border-color:var(--brand)}
+.tab .c{opacity:.7;font-size:11px;margin-left:4px}
+.gallery{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:12px}
+.fig{border:1px solid var(--line);border-radius:10px;overflow:hidden;background:var(--panel);cursor:zoom-in;display:flex;flex-direction:column}
+.fig img{width:100%;height:170px;object-fit:contain;background:#fff;display:block}
+.fig .cap{padding:7px 9px;font-size:12px;border-top:1px solid var(--line)}
+.fig .cap small{color:var(--muted);display:block}
+.lb{position:fixed;inset:0;background:rgba(5,10,8,.88);z-index:100;display:none;flex-direction:column}
+.lb.open{display:flex}
+.lb .bar{display:flex;align-items:center;gap:10px;padding:10px 16px;color:#e8f0eb}
+.lb .bar .t{flex:1;font-weight:600}
+.lb .bar a,.lb .bar button{color:#e8f0eb;border:1px solid rgba(255,255,255,.3);background:none;border-radius:8px;padding:5px 10px;cursor:pointer;text-decoration:none;font:inherit}
+.lb .stage{flex:1;overflow:auto;display:flex;align-items:flex-start;justify-content:center;padding:10px}
+.lb img{max-width:100%;max-height:calc(100vh - 80px);background:#fff;cursor:zoom-in}
+.lb img.zoom{max-width:none;max-height:none;cursor:zoom-out}
+.kpis{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px;margin-bottom:14px}
+.kpi{border:1px solid var(--line);border-radius:10px;padding:10px 12px;background:var(--soft)}
+.kpi .v{font-size:20px;font-weight:700} .kpi .l{font-size:12px;color:var(--muted)}
+.hidden{display:none!important}
+@media (max-width:900px){
+  .layout{grid-template-columns:1fr;padding:12px 16px}
+  nav.steps{position:static;flex-direction:row;overflow-x:auto}
+  nav.steps a{white-space:nowrap;padding:7px 10px}
+  nav.steps .sub{display:none}
+  header .iconbtn{padding:4px 7px}
+  .g2,.g3,.g4{grid-template-columns:1fr}
+  header{flex-wrap:wrap}
+}
+</style>
+</head>
+<body>
+<header>
+  <div class="logo">
+    <svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="8" fill="var(--brand)"/>
+      <path d="M7 23V9m6 14V13m6 10V7m6 16v-8" stroke="var(--brand-ink)" stroke-width="2.6" stroke-linecap="round"/></svg>
+    <div>PlotSpectra<small>UAV plot analytics for Pix4Dfields outputs · Generated by Ali Bazrafkan | <a href="mailto:ali.bazrafkan@montana.edu">ali.bazrafkan@montana.edu</a></small></div>
+  </div>
+  <div class="spacer"></div>
+  <span id="computeBadge" class="badge" title="Compute device"><span class="dot"></span><span>Detecting compute…</span></span>
+  <button class="iconbtn" id="gpuRefresh" title="Re-detect GPU">↻</button>
+  <button class="iconbtn" id="saveCfg" title="Download the current settings as JSON">Save settings</button>
+  <label class="iconbtn" title="Load settings JSON" style="cursor:pointer">Load<input type="file" id="loadCfg" accept=".json" hidden></label>
+  <a class="btn primary hidden" id="goRun" href="#s-run" title="Data and plots are set - jump to Run">▶ Run analysis</a>
+  <button class="iconbtn" id="themeBtn" title="Toggle light/dark">◐</button>
+</header>
+
+<div class="layout">
+<nav class="steps" id="steps">
+  <a href="#s-data" data-s="s-data"><span class="n">1</span><span>Data<span class="sub">Pix4D outputs</span></span></a>
+  <a href="#s-plots" data-s="s-plots"><span class="n">2</span><span>Plots<span class="sub">Boundaries &amp; PLOTID</span></span></a>
+  <a href="#s-indices" data-s="s-indices"><span class="n">3</span><span>Indices &amp; stats<span class="sub">VIs, height, thermal</span></span></a>
+  <a href="#s-viz" data-s="s-viz"><span class="n">4</span><span>Visualization<span class="sub">350 dpi, rasters</span></span></a>
+  <a href="#s-adv" data-s="s-adv"><span class="n">5</span><span>Advanced<span class="sub">Optional modules</span></span></a>
+  <a href="#s-run" data-s="s-run"><span class="n">6</span><span>Run<span class="sub">Progress &amp; log</span></span></a>
+  <a href="#s-results" data-s="s-results"><span class="n">7</span><span>Results<span class="sub">Excel &amp; figures</span></span></a>
+</nav>
+
+<main>
+<!-- 1 DATA -->
+<section class="card" id="s-data">
+  <h2>1 · Input data</h2>
+  <p class="lead">Only two inputs are required: this folder and the plot boundaries (step 2). Everything else has defaults. Point to the folder that holds the Pix4Dfields exports (multispectral <span class="mono">*.data.tif</span>, DSM, RGB).</p>
+  <div class="grid g2">
+    <label class="f">Input folder <span class="req">*</span>
+      <div class="pathrow"><input type="text" id="inFolder" placeholder="C:\...\inputFolder"><button class="btn" data-browse="inFolder" data-kind="folder">Browse…</button></div></label>
+    <label class="f">Output folder
+      <div class="pathrow"><input type="text" id="outFolder" placeholder="C:\...\outputs"><button class="btn" data-browse="outFolder" data-kind="folder">Browse…</button></div></label>
+  </div>
+  <div class="row" style="margin-top:12px"><button class="btn" id="scanBtn">Re-scan</button><span id="scanMsg" class="muted">The folder is scanned automatically when you choose it.</span></div>
+  <div id="scanOut" class="hidden" style="margin-top:14px">
+    <table class="kv" id="scanTable"></table>
+    <div id="scanWarn" style="margin-top:10px"></div>
+    <details style="margin-top:10px"><summary class="muted" style="cursor:pointer">Band mapping (override if band names were not recognised)</summary>
+      <div class="grid g4" id="bandMap" style="margin-top:10px"></div></details>
+  </div>
+</section>
+
+<!-- 2 PLOTS -->
+<section class="card" id="s-plots">
+  <h2>2 · Plot boundaries</h2>
+  <p class="lead">Shapefile, GeoJSON/JSON, GeoPackage, KML or an Esri File Geodatabase (<span class="mono">.gdb</span> folder). The layer is reprojected to the orthomosaic CRS automatically.</p>
+  <label class="f">Boundary file <span class="req">*</span>
+    <div class="pathrow"><input type="text" id="bndPath" placeholder="plots.shp / plots.geojson / field.gdb">
+      <button class="btn" data-browse="bndPath" data-kind="file" data-filter="boundary">File…</button>
+      <button class="btn" data-browse="bndPath" data-kind="folder" title="Select a .gdb folder">.gdb folder…</button>
+      <button class="btn" id="bndLoad">Reload</button></div></label>
+  <div id="bndOut" class="hidden" style="margin-top:14px">
+    <div class="grid g4">
+      <label class="f">Layer<select id="bndLayer"></select></label>
+      <label class="f">PLOTID column <span class="req">*</span><select id="idCol"></select></label>
+      <label class="f">Treatment / genotype column <span class="muted">(optional)</span><select id="grpCol"></select></label>
+      <label class="f">Block / replicate column <span class="muted">(optional)</span><select id="blkCol"></select></label>
+      <label class="f">Sowing-date column <span class="muted">(optional, per-plot GDD)</span><select id="sowCol"></select></label>
+      <label class="f">Edge buffer (m) <span class="muted">negative shrinks plots</span><input type="number" id="bufM" value="0" step="0.05"></label>
+    </div>
+    <p id="bndInfo" class="muted" style="margin:10px 0 6px"></p>
+    <div class="scroll"><table class="data" id="bndSample"></table></div>
+    <p class="note" style="margin-top:10px">With a treatment column the app runs the proper inferential design (plot means as replicates, ANOVA/Tukey, letters). Without it, plots are compared with within-plot sub-samples, which is descriptive (pseudo-replication).</p>
+  </div>
+</section>
+
+<!-- 3 INDICES -->
+<section class="card" id="s-indices">
+  <h2>3 · Vegetation indices, height &amp; statistics</h2>
+  <p class="lead">The 15 indices pre-selected are the most-used in Q1 precision-agriculture literature that your bands support (ranking: <span class="mono">docs/vegetation_indices_review.md</span>). Bands, thermal (°C), DSM, generated DTM and plant height are always reported.</p>
+  <div class="row" style="margin-bottom:10px">
+    <button class="btn" id="ixDefault">Literature top 15</button><button class="btn" id="ixAll">All available</button><button class="btn" id="ixNone">None</button>
+    <span class="muted" id="ixCount"></span>
+  </div>
+  <div class="chips" id="ixGrid"></div>
+  <details style="margin-top:12px"><summary style="cursor:pointer;font-weight:600">+ Custom index</summary>
+    <div class="row" style="margin-top:10px">
+      <input type="text" id="cxAbbr" placeholder="Name e.g. NDREI2" style="max-width:180px">
+      <input type="text" id="cxFormula" placeholder="Formula with B, G, R, RE, NIR and np.*  e.g. (NIR-RE)/(NIR+RE)" style="flex:1;font-family:var(--mono)">
+      <button class="btn" id="cxAdd">Add</button></div>
+    <div id="cxList" class="row" style="margin-top:8px"></div>
+  </details>
+  <hr style="border:none;border-top:1px solid var(--line);margin:18px 0">
+  <div class="grid g4">
+    <label class="f">Pixels used for spectral stats
+      <select id="specPix"><option value="all">All plot pixels (standard zonal stats)</option><option value="vegetation">Vegetation pixels only (soil masked)</option></select></label>
+    <label class="f">Vegetation NDVI threshold <span class="muted">(blank = automatic Otsu)</span><input type="number" id="vegThr" step="0.01" placeholder="auto"></label>
+    <label class="f">Min. canopy height for vegetation (m) <span class="muted">(optional)</span><input type="number" id="vegMinH" step="0.01" placeholder="none"></label>
+    <label class="f">Statistics reported<input type="text" value="Min · Mean · Median · Max · StDev · Range (one sheet each)" disabled></label>
+  </div>
+  <hr style="border:none;border-top:1px solid var(--line);margin:18px 0">
+  <div class="row" style="justify-content:space-between"><label class="switch"><input type="checkbox" id="statsOn" checked><span class="t"></span>Test for significant differences between plots</label></div>
+  <div class="grid g4" id="statsOpts" style="margin-top:12px">
+    <label class="f">Replicate unit (plot-vs-plot)
+      <select id="repUnit"><option value="cells">Sub-plot cell means (recommended)</option><option value="pixels">Spatially thinned pixels</option></select></label>
+    <label class="f">Cell size / pixel spacing (m)<input type="number" id="cellM" value="0.5" step="0.1" min="0.05"></label>
+    <label class="f">Max pixels per plot (thinned mode)<input type="number" id="nPix" value="200" min="50" max="2000"></label>
+    <label class="f">Significance level α<input type="number" id="alpha" value="0.05" step="0.01" min="0.001" max="0.2"></label>
+  </div>
+</section>
+
+<!-- 4 VIZ -->
+<section class="card" id="s-viz">
+  <h2>4 · Visualization <span class="pill">PNG · 350 dpi</span></h2>
+  <p class="lead">Every figure is written as a 350 dpi PNG (with a thumbnail for the gallery). Choose which families to produce.</p>
+  <label class="switch"><input type="checkbox" id="vizOn" checked><span class="t"></span>Produce figures</label>
+  <div id="vizOpts" style="margin-top:12px">
+    <div class="chips" id="vizGroups"></div>
+    <div class="grid g3" style="margin-top:14px">
+      <label class="f">Colour palette
+        <select id="palette"><option value="viridis">Viridis (colour-blind safe)</option><option value="cividis">Cividis (greyscale-safe)</option><option value="classic">Classic red–yellow–green for greenness indices</option></select></label>
+      <label class="f">Resolution<input type="text" value="350 dpi (fixed)" disabled></label>
+      <label class="f">Variables in per-variable figures<select id="figVars"><option value="all">All computed variables</option><option value="selected">Selected indices + height + thermal only</option></select></label>
+    </div>
+  </div>
+  <hr style="border:none;border-top:1px solid var(--line);margin:18px 0">
+  <label class="switch"><input type="checkbox" id="rasOn"><span class="t"></span>Also save raster files (GeoTIFF, full resolution)</label>
+  <p class="muted" style="margin:6px 0 0">Off by default — nothing is written unless you tick layers below.</p>
+  <div id="rasOpts" class="hidden" style="margin-top:12px">
+    <div class="row" style="margin-bottom:8px"><button class="btn" id="rasAll">Select all</button><button class="btn" id="rasNone">Clear</button></div>
+    <div class="chips" id="rasLayers"></div>
+  </div>
+</section>
+
+<!-- 5 ADVANCED -->
+<section class="card" id="s-adv">
+  <h2>5 · Advanced analyses <span class="pill">optional</span></h2>
+  <p class="lead">Switch on any module. Each one adds its own sheet(s) to the Excel workbook and figures to the gallery.</p>
+
+  <details class="adv" data-adv="stand"><summary><span class="advnum">1</span><div><div class="ttl">Stand counting</div><div class="ds">Plants per plot and density from connected plant objects; reliable before canopy closure</div></div>
+    <label class="switch" onclick="event.stopPropagation()"><input type="checkbox" data-on="stand"><span class="t"></span></label><span class="chev">›</span></summary>
+    <div class="body"><div class="grid g4">
+      <label class="f">Method<select id="scMethod"><option value="blob">Object area (split clumps by single-plant area)</option><option value="peaks">NDVI peaks (min spacing)</option></select></label>
+      <label class="f">Min. plant object area (cm²)<input type="number" id="scMinA" value="20" step="1"></label>
+      <label class="f">Min. plant spacing (cm, peaks)<input type="number" id="scSpace" value="5" step="0.5"></label>
+      <label class="f">Single-plant area (cm²) <span class="muted">blank = learn from open plots</span><input type="number" id="scSingle" placeholder="auto"></label>
+      <label class="f">Canopy closed above (% cover)<input type="number" id="scClosed" value="60"></label>
+      <label class="switch" style="margin-top:22px"><input type="checkbox" id="scForce"><span class="t"></span>Count closed canopies anyway</label>
+    </div></div></details>
+
+  <details class="adv" data-adv="canopy"><summary><span class="advnum">2</span><div><div class="ttl">Canopy cover &amp; canopy volume</div><div class="ds">Vegetation fraction, canopy area, Σ(height × pixel area)</div></div>
+    <label class="switch" onclick="event.stopPropagation()"><input type="checkbox" data-on="canopy"><span class="t"></span></label><span class="chev">›</span></summary>
+    <div class="body"><p class="muted">Uses the vegetation mask (NDVI threshold, optional min. height) and the plant-height model.</p></div></details>
+
+  <details class="adv" data-adv="harvest"><summary><span class="advnum">3</span><div><div class="ttl">Harvestable area</div><div class="ds">Canopy area ÷ whole plot area (optionally only canopy taller than a cutting height)</div></div>
+    <label class="switch" onclick="event.stopPropagation()"><input type="checkbox" data-on="harvest"><span class="t"></span></label><span class="chev">›</span></summary>
+    <div class="body"><div class="grid g3"><label class="f">Minimum harvestable height (m)<input type="number" id="hvMinH" value="0" step="0.01"></label></div></div></details>
+
+  <details class="adv" data-adv="length"><summary><span class="advnum">4</span><div><div class="ttl">Plant / canopy length</div><div class="ds">Canopy extent along the plot (row) axis, row coverage, gaps, plant-object length</div></div>
+    <label class="switch" onclick="event.stopPropagation()"><input type="checkbox" data-on="length"><span class="t"></span></label><span class="chev">›</span></summary>
+    <div class="body"><div class="grid g3"><label class="f">Report gaps longer than (cm)<input type="number" id="lnGap" value="30"></label></div></div></details>
+
+  <details class="adv" data-adv="corr"><summary><span class="advnum">5</span><div><div class="ttl">Correlation matrix (bands &amp; indices)</div><div class="ds">Within each plot (pixels) and across plots (plot means); flags redundant indices</div></div>
+    <label class="switch" onclick="event.stopPropagation()"><input type="checkbox" data-on="corr"><span class="t"></span></label><span class="chev">›</span></summary>
+    <div class="body"><div class="grid g3">
+      <label class="f">Coefficient<select id="crMethod"><option value="pearson">Pearson</option><option value="spearman">Spearman</option></select></label>
+      <label class="switch" style="margin-top:22px"><input type="checkbox" id="crPerPlot"><span class="t"></span>One heatmap per plot (≤300)</label></div></div></details>
+
+  <details class="adv" data-adv="thermal"><summary><span class="advnum">6</span><div><div class="ttl">Thermal analysis</div><div class="ds">Canopy/soil temperature, CTD, CWSI (image-based and Idso), Ig, I3, NRCT, QC flags</div></div>
+    <label class="switch" onclick="event.stopPropagation()"><input type="checkbox" data-on="thermal"><span class="t"></span></label><span class="chev">›</span></summary>
+    <div class="body"><div class="grid g4">
+      <label class="f">Thermal band unit<select id="thUnit"><option value="auto">Auto-detect</option><option value="centikelvin">centi-Kelvin (Pix4Dfields, Sentera/Altum)</option><option value="decikelvin">deci-Kelvin</option><option value="kelvin">Kelvin</option><option value="celsius">°C</option><option value="custom">Custom scale/offset</option></select></label>
+      <label class="f">Custom: °C = scale × value + offset<div class="row"><input type="number" id="thScale" placeholder="scale" step="any" style="flex:1"><input type="number" id="thOffset" placeholder="offset" step="any" style="flex:1"></div></label>
+      <label class="f">Crop baseline (Idso CWSI)<select id="thCrop"><option value="">— none —</option><option>Corn</option><option>Wheat</option><option>Barley</option><option>Soybean</option><option>Cotton</option><option>Alfalfa</option></select></label>
+      <label class="switch" style="margin-top:22px"><input type="checkbox" id="thWeather" checked><span class="t"></span>Air T / RH from weather API</label>
+      <label class="f">Air temperature at flight (°C)<input type="number" id="thTa" step="0.1" placeholder="from weather"></label>
+      <label class="f">Relative humidity (%)<input type="number" id="thRh" step="1" placeholder="from weather"></label>
+      <label class="f">T wet reference (°C)<input type="number" id="thTwet" step="0.1" placeholder="coolest 5 % canopy"></label>
+      <label class="f">T dry reference (°C)<input type="number" id="thTdry" step="0.1" placeholder="Tair + 5 °C"></label>
+      <label class="f">Canopy NDVI for thermal<input type="number" id="thCanNdvi" value="0.6" step="0.05"></label>
+      <label class="f">Soil NDVI for thermal<input type="number" id="thSoilNdvi" value="0.2" step="0.05"></label>
+      <label class="f">Edge erosion (m)<input type="number" id="thErode" value="0.05" step="0.01"></label>
+    </div></div></details>
+
+  <details class="adv" data-adv="gdd"><summary><span class="advnum">7</span><div><div class="ttl">Growing degree days</div><div class="ds">Open-Meteo (ERA5) daily temperatures, NASA POWER fallback — free, no API key</div></div>
+    <label class="switch" onclick="event.stopPropagation()"><input type="checkbox" data-on="gdd"><span class="t"></span></label><span class="chev">›</span></summary>
+    <div class="body"><div class="grid g4">
+      <label class="f">Latitude <span class="muted">(blank = image centre)</span><input type="number" id="gdLat" step="any"></label>
+      <label class="f">Longitude<input type="number" id="gdLon" step="any"></label>
+      <label class="f">Image date &amp; time (local)<input type="datetime-local" id="gdImg"></label>
+      <label class="f">Sowing date<input type="date" id="gdSow"></label>
+      <label class="f">Crop<select id="gdCrop"></select></label>
+      <label class="f">T base (°C)<input type="number" id="gdTb" step="0.1"></label>
+      <label class="f">T upper (°C)<input type="number" id="gdTu" step="0.1"></label>
+    </div><p class="muted" id="gdSrc" style="margin:8px 0 0"></p><p class="muted" style="margin:8px 0 0">All fields are optional; a sowing-date column in the boundary file gives per-plot GDD. Base temperatures come from the panel's literature review (<span class="mono">docs/gdd_tbase_review.md</span>); edit T base / T upper to override.</p></div></details>
+
+  <details class="adv" data-adv="field"><summary><span class="advnum">8</span><div><div class="ttl">Integrate field data</div><div class="ds">Yield, biomass, maturity… joined to every numeric image metric; trait correlations</div></div>
+    <label class="switch" onclick="event.stopPropagation()"><input type="checkbox" data-on="field"><span class="t"></span></label><span class="chev">›</span></summary>
+    <div class="body">
+      <label class="f">Field data (CSV / Excel)
+        <div class="pathrow"><input type="text" id="fdPath"><button class="btn" data-browse="fdPath" data-kind="file" data-filter="table">Browse…</button><button class="btn primary" id="fdLoad">Load</button></div></label>
+      <div id="fdOut" class="hidden" style="margin-top:10px"><div class="grid g3">
+        <label class="f">Sheet<select id="fdSheet"></select></label>
+        <label class="f">Common column (matches PLOTID) <span class="req">*</span><select id="fdJoin"></select></label>
+        <div class="muted" id="fdInfo" style="align-self:end"></div></div>
+        <div class="scroll" style="margin-top:10px"><table class="data" id="fdSample"></table></div></div>
+    </div></details>
+
+  <details class="adv" data-adv="tuning" open><summary><span class="advnum">⚙</span><div><div class="ttl">Processing &amp; DTM settings</div><div class="ds">GPU, threads, terrain-model parameters</div></div><span class="chev">›</span></summary>
+    <div class="body"><div class="grid g4">
+      <label class="switch" style="margin-top:22px"><input type="checkbox" id="gpuPrefer" checked><span class="t"></span>Use GPU when available</label>
+      <label class="f">GPU device index<input type="number" id="gpuDev" value="0" min="0"></label>
+      <label class="f">Worker threads / processes<input type="number" id="workers" placeholder="auto" min="1"></label>
+      <span></span>
+      <label class="f">DTM working resolution (m)<input type="number" id="dtmRes" value="0.10" step="0.01"></label>
+      <label class="f">DTM ground cell (m)<input type="number" id="dtmCell" value="1.0" step="0.1"></label>
+      <label class="f">Ground percentile<input type="number" id="dtmPct" value="25" step="5"></label>
+      <label class="f">Bare-soil NDVI threshold<input type="number" id="dtmNdvi" step="0.01" placeholder="auto (Otsu)"></label>
+    </div></div></details>
+</section>
+
+<!-- 6 RUN -->
+<section class="card" id="s-run">
+  <h2>6 · Run</h2>
+  <div id="runCheck" style="margin-bottom:12px"></div>
+  <div class="row"><button class="btn primary big" id="runBtn">Run analysis</button><button class="btn danger hidden" id="cancelBtn">Cancel</button>
+    <span id="runStage" class="muted"></span></div>
+  <div class="progress" style="margin:14px 0 10px"><div id="bar"></div></div>
+  <pre class="log" id="log">Ready.</pre>
+</section>
+
+<!-- 7 RESULTS -->
+<section class="card hidden" id="s-results">
+  <h2>7 · Results</h2>
+  <div class="kpis" id="kpis"></div>
+  <div class="row" style="margin-bottom:14px">
+    <a class="btn primary" id="xlsxLink" href="#">Download Excel workbook</a>
+    <a class="btn" id="predLink" href="#">All predictors per plot (Excel)</a>
+    <button class="btn" id="openOut">Open output folder</button>
+    <span class="muted" id="rasList"></span>
+  </div>
+  <div class="row" style="margin-bottom:10px">
+    <input type="text" id="gSearch" placeholder="Filter figures (e.g. NDVI, thermal, rank)…" style="max-width:340px">
+  </div>
+  <div class="tabs" id="gTabs"></div>
+  <div class="gallery" id="gallery"></div>
+</section>
+<footer class="muted" style="text-align:center;font-size:12px;padding:10px 0 30px">Generated by Ali Bazrafkan | <a href="mailto:ali.bazrafkan@montana.edu">ali.bazrafkan@montana.edu</a> · PlotSpectra <span id="verTag"></span></footer>
+</main>
+</div>
+
+<div class="lb" id="lb"><div class="bar"><button id="lbPrev">‹</button><button id="lbNext">›</button><span class="t" id="lbTitle"></span>
+  <a id="lbDl" href="#" download>Download PNG</a><button id="lbClose">Close ✕</button></div>
+  <div class="stage"><img id="lbImg" alt=""></div></div>
+
+<script>
+const $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAll(s)];
+const TOKEN = "__PS_TOKEN__";  // injected by the local server; protects the API from other web pages
+const api = async (path, body) => {
+  const r = await fetch(path, body === undefined ? {headers: {"X-PS-Token": TOKEN}} :
+    {method: "POST", headers: {"Content-Type": "application/json", "X-PS-Token": TOKEN}, body: JSON.stringify(body)});
+  const j = await r.json();
+  if (!r.ok) throw new Error(j.error || r.statusText);
+  return j;
+};
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;"}[c]));
+const fileUrl = (p, dl) => "/api/file?path=" + encodeURIComponent(p) + "&t=" + encodeURIComponent(TOKEN) + (dl ? "&download=1" : "");
+const state = {scan: null, boundary: null, catalog: [], custom: [], field: null, job: null, figs: [], tab: "All", lbIdx: 0};
+const VIZ_GROUPS = [["layout", "Plot layout", "RGB with plot IDs"], ["qc", "DTM quality control", "Terrain, soil mask, CHM"],
+  ["maps", "Raster maps", "Field maps of each index"], ["plotmaps", "Plot maps", "Plot means over the field"],
+  ["distributions", "Distributions & tests", "Box plots with letters"], ["ranking", "Rankings", "Ranked means ± 95 % CI"],
+  ["heatmap", "Clustered heatmap", "Plots × variables"], ["correlation", "Correlation", "Matrices & redundant pairs"],
+  ["height", "Plant height", "Height histogram"], ["thermal", "Thermal", "CWSI, CTD, temperature maps"],
+  ["canopy", "Canopy structure", "Cover, volume, counts"], ["gdd", "GDD", "Temperature & GDD curve"], ["field", "Field data", "Trait correlations"]];
+
+/* ---------- theme ---------- */
+(() => { try { const t = localStorage.getItem("ps-theme"); if (t) document.documentElement.dataset.theme = t; } catch (e) {} })();
+$("#themeBtn").onclick = () => {
+  const cur = document.documentElement.dataset.theme || (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+  const nxt = cur === "dark" ? "light" : "dark";
+  document.documentElement.dataset.theme = nxt; try { localStorage.setItem("ps-theme", nxt); } catch (e) {}
+};
+
+/* ---------- nav highlight ---------- */
+const io = new IntersectionObserver(es => es.forEach(e => {
+  if (e.isIntersecting) $$("nav.steps a").forEach(a => a.classList.toggle("active", a.dataset.s === e.target.id));
+}), {rootMargin: "-40% 0px -55% 0px"});
+$$("section.card").forEach(s => io.observe(s));
+const markDone = (id, ok = true) => { const a = $(`nav.steps a[data-s="${id}"]`); if (a) a.classList.toggle("done", ok); };
+
+/* ---------- system ---------- */
+function showCompute(c) {
+  const b = $("#computeBadge");
+  b.className = "badge " + (c.gpu ? "gpu" : "cpu");
+  b.lastElementChild.textContent = c.gpu ? `GPU · ${c.device}` : `CPU · ${c.device}`;
+  b.title = [`Backend: ${c.backend}`, ...(c.cuda_devices || []).map(d => "CUDA " + d),
+    ...(c.system_gpus || []).map(g => "System GPU: " + g), ...(c.notes || [])].join("\n") +
+    (c.gpu ? "" : "\n\nInstall CuPy (pip install cupy-cuda12x) or PyTorch with CUDA to enable GPU acceleration.");
+}
+async function init() {
+  // keep label text and its "*"/hint on one line: wrap the leading inline nodes of each field label
+  $$("label.f").forEach(l => {
+    const head = document.createElement("span");
+    while (l.firstChild && !(l.firstChild.nodeType === 1 && /^(INPUT|SELECT|TEXTAREA|DIV)$/.test(l.firstChild.tagName))) head.appendChild(l.firstChild);
+    l.prepend(head);
+  });
+  try {
+    const s = await api("/api/system");
+    showCompute(s.compute);
+    $("#verTag").textContent = "v" + (s.version || "");
+    if (!$("#inFolder").value) $("#inFolder").value = s.default_input;
+    if (!$("#outFolder").value) $("#outFolder").value = s.default_output;
+    if ($("#inFolder").value) scan().catch(() => {});
+    if ($("#bndPath").value) loadBoundary().catch(() => {});
+  } catch (e) { $("#computeBadge").lastElementChild.textContent = "Server not reachable"; }
+  state.catalog = await api("/api/indices");
+  renderIndices();
+  const crops = await api("/api/crops");
+  $("#gdCrop").innerHTML = Object.keys(crops).map(c => `<option>${esc(c)}</option>`).join("");
+  $("#gdCrop").onchange = () => { const c = crops[$("#gdCrop").value]; $("#gdTb").value = c.tbase; $("#gdTu").value = c.tupper ?? "";
+    $("#gdSrc").innerHTML = c.source ? `T<sub>base</sub> source: ${esc(c.source)}${c.doi_or_url ? ` — <a href="${/^https?:/.test(c.doi_or_url) ? esc(c.doi_or_url) : "https://doi.org/" + esc(c.doi_or_url)}" target="_blank" rel="noopener">${esc(c.doi_or_url)}</a>` : ""}${c.confidence ? ` (confidence: ${esc(c.confidence)})` : ""}${c.notes ? `<br>${esc(c.notes)}` : ""}` : ""; };
+  $("#gdCrop").onchange();
+  $("#vizGroups").innerHTML = VIZ_GROUPS.map(([k, t, d]) =>
+    `<label class="chip on"><input type="checkbox" data-vg="${k}" checked><div><b>${t}</b><div class="d">${d}</div></div></label>`).join("");
+  bindChips("#vizGroups");
+  restoreLocal();
+  updateRunCheck();
+}
+$("#gpuRefresh").onclick = async () => showCompute(await api("/api/gpu_refresh", {}));
+
+/* ---------- browse ---------- */
+document.addEventListener("click", async e => {
+  const b = e.target.closest("[data-browse]"); if (!b) return;
+  e.preventDefault(); b.disabled = true;
+  try {
+    const r = await api("/api/browse", {kind: b.dataset.kind, filter: b.dataset.filter || "any", title: b.textContent});
+    if (r.path) { const inp = $("#" + b.dataset.browse); inp.value = r.path; inp.dispatchEvent(new Event("change")); }
+  } catch (err) { alert("Browse failed: " + err.message); } finally { b.disabled = false; }
+});
+
+/* ---------- scan ---------- */
+$("#scanBtn").onclick = scan;
+$("#inFolder").addEventListener("change", () => { if ($("#inFolder").value.trim()) scan(); });
+async function scan() {
+  $("#scanMsg").textContent = "Scanning…";
+  try {
+    const r = await api("/api/scan", {folder: $("#inFolder").value.trim()});
+    state.scan = r;
+    const ms = r.multispectral, dsm = r.dsm, rgb = r.rgb;
+    const rows = [
+      ["Multispectral orthomosaic", ms ? `<b>${esc(ms.name)}</b> · ${ms.count} bands (${ms.descriptions.map(esc).join(", ")}) · ${ms.size_mb} MB` : "<span style='color:var(--danger)'>not found</span>"],
+      ["Grid", ms ? `${ms.width} × ${ms.height} px · GSD ${(ms.res[0] * 100).toFixed(2)} cm · ${esc(ms.crs)}` : ""],
+      ["DSM", dsm ? esc(dsm.name) : "<span style='color:var(--danger)'>not found – no plant height</span>"],
+      ["RGB orthomosaic", rgb ? esc(rgb.name) : "—"],
+      ["Other single-band rasters", r.index_maps.length ? r.index_maps.map(x => esc(x.name)).join(", ") : "—"],
+      ["Image date/time (tag)", esc(r.image_datetime || "—")],
+      ["Image centre", r.center_latlon ? `${r.center_latlon[0].toFixed(5)}, ${r.center_latlon[1].toFixed(5)}` : "—"],
+      ["Processing software", esc(ms?.software || "—")]];
+    $("#scanTable").innerHTML = rows.map(([k, v]) => `<tr><th>${k}</th><td>${v}</td></tr>`).join("");
+    $("#scanWarn").innerHTML = r.warnings.map(w => `<div class="note warn" style="margin-bottom:6px">${esc(w)}</div>`).join("");
+    const keys = [["B", "Blue"], ["G", "Green"], ["R", "Red"], ["RE", "Red edge"], ["NIR", "NIR"], ["T", "Thermal"], ["A", "Alpha"]];
+    const opts = ms ? ["<option value=''>—</option>", ...ms.descriptions.map((d, i) => `<option value="${i + 1}">${i + 1}: ${esc(d || "band " + (i + 1))}</option>`)].join("") : "";
+    $("#bandMap").innerHTML = keys.map(([k, n]) => `<label class="f">${n}<select data-band="${k}">${opts}</select></label>`).join("");
+    keys.forEach(([k]) => { const s = $(`[data-band="${k}"]`); if (s && r.band_map[k]) s.value = r.band_map[k]; });
+    $$("[data-band]").forEach(s => s.onchange = renderIndices);
+    if (r.center_latlon) { $("#gdLat").placeholder = r.center_latlon[0].toFixed(5); $("#gdLon").placeholder = r.center_latlon[1].toFixed(5); }
+    if (r.image_datetime && !$("#gdImg").value) $("#gdImg").value = r.image_datetime.slice(0, 16);
+    $("#scanOut").classList.remove("hidden");
+    $("#scanMsg").textContent = "";
+    markDone("s-data", !!ms);
+    renderIndices(); renderRasterLayers(); updateRunCheck(); saveLocal();
+  } catch (e) { $("#scanMsg").innerHTML = `<span style="color:var(--danger)">${esc(e.message)}</span>`; }
+}
+function bandMap() {
+  const m = {};
+  $$("[data-band]").forEach(s => { if (s.value) m[s.dataset.band] = +s.value; });
+  return Object.keys(m).length ? m : (state.scan?.band_map || {});
+}
+
+/* ---------- boundary ---------- */
+$("#bndLoad").onclick = () => loadBoundary();
+$("#bndPath").addEventListener("change", () => loadBoundary());
+async function loadBoundary(layer) {
+  const p = $("#bndPath").value.trim(); if (!p) return;
+  $("#bndInfo").textContent = "Reading…"; $("#bndOut").classList.remove("hidden");
+  try {
+    const r = await api("/api/boundary", {path: p, layer});
+    state.boundary = r;
+    $("#bndLayer").innerHTML = (r.layers.length ? r.layers : [r.layer || "(default)"]).map(l => `<option ${l === r.layer ? "selected" : ""}>${esc(l)}</option>`).join("");
+    $("#bndLayer").onchange = () => loadBoundary($("#bndLayer").value);
+    const opt = (sel, none) => (none ? "<option value=''>— none —</option>" : "") + r.columns.map(c => `<option ${c === sel ? "selected" : ""}>${esc(c)}</option>`).join("");
+    $("#idCol").innerHTML = opt(r.id_guess, false);
+    const g = r.columns.find(c => /treat|trt|geno|variety|entry|cultivar/i.test(c));
+    const bl = r.columns.find(c => /^(block|rep|replicate|blk)$/i.test(c));
+    const sw = r.columns.find(c => /sow|plant.*date|seed.*date/i.test(c));
+    $("#grpCol").innerHTML = opt(g, true); $("#blkCol").innerHTML = opt(bl, true); $("#sowCol").innerHTML = opt(sw, true);
+    if (!g) $("#grpCol").value = ""; if (!bl) $("#blkCol").value = ""; if (!sw) $("#sowCol").value = "";
+    $("#idCol").onchange = idInfo; idInfo();
+    $("#bndSample").innerHTML = `<tr>${r.columns.map(c => `<th>${esc(c)}</th>`).join("")}</tr>` +
+      r.sample.map(row => `<tr>${r.columns.map(c => `<td>${esc(row[c])}</td>`).join("")}</tr>`).join("");
+    markDone("s-plots"); updateRunCheck(); saveLocal();
+  } catch (e) { $("#bndInfo").innerHTML = `<span style="color:var(--danger)">${esc(e.message)}</span>`; }
+}
+function idInfo() {
+  const r = state.boundary, c = $("#idCol").value, u = r.unique_counts[c];
+  $("#bndInfo").innerHTML = `${r.n_features} features · ${esc(r.geom_types.join("/"))} · CRS ${esc(r.crs || "undefined (assumed raster CRS)")} · ` +
+    `<b>${esc(c)}</b> has ${u} unique values` + (u < r.n_features ? ` <span style="color:var(--accent)">(duplicates will be merged into multipolygons)</span>` : "");
+  updateRunCheck();
+}
+
+/* ---------- indices ---------- */
+function renderIndices(keep) {
+  const bm = bandMap(), prev = keep ?? new Set($$("#ixGrid input:checked").map(i => i.value));
+  const first = !$("#ixGrid").children.length;
+  $("#ixGrid").innerHTML = state.catalog.map(c => {
+    const ok = c.bands.every(b => b in bm || !state.scan);
+    const on = ok && (first ? c.default : prev.has(c.abbr));
+    return `<label class="chip ${on ? "on" : ""} ${ok ? "" : "dis"}" title="${esc(c.name)}\n${esc(c.formula)}\nSensitive to: ${esc(c.sensitivity)}${c.doi ? "\nDOI " + esc(c.doi) : ""}">
+      <input type="checkbox" value="${esc(c.abbr)}" ${on ? "checked" : ""} ${ok ? "" : "disabled"}>
+      <div><b>${esc(c.abbr)}</b>${c.rank ? `<span class="rk">#${c.rank}</span>` : ""}<div class="d">${esc(c.name)}${ok ? "" : " — needs " + c.bands.filter(b => !(b in bm)).join(", ")}</div><code>${esc(c.formula)}</code></div></label>`;
+  }).join("");
+  bindChips("#ixGrid", () => { ixCount(); renderRasterLayers(); saveLocal(); });
+  ixCount(); renderRasterLayers();
+}
+function ixCount() { $("#ixCount").textContent = `${$$("#ixGrid input:checked").length + state.custom.length} selected`; }
+function setIx(fn) { renderIndices(new Set(state.catalog.filter(fn).map(c => c.abbr))); saveLocal(); }
+$("#ixDefault").onclick = () => setIx(c => c.default);
+$("#ixAll").onclick = () => setIx(() => true);
+$("#ixNone").onclick = () => setIx(() => false);
+function bindChips(root, cb) {
+  $$(root + " .chip input").forEach(i => i.onchange = () => { i.closest(".chip").classList.toggle("on", i.checked); cb && cb(); });
+}
+$("#cxAdd").onclick = async () => {
+  const abbr = $("#cxAbbr").value.trim().replace(/[^A-Za-z0-9_]/g, "_"), formula = $("#cxFormula").value.trim();
+  if (!abbr || !formula) return;
+  const taken = new Set([...state.catalog.map(c => c.abbr), ...state.custom.map(c => c.abbr),
+    "Green", "Red", "RedEdge", "NIR", "Blue", "Thermal_C", "Tcanopy_C", "Tsoil_C", "PlantHeight_m", "DSM_m", "DTM_m"]);
+  if (taken.has(abbr)) { alert(`"${abbr}" is already used - choose another name.`); return; }
+  const r = await api("/api/validate_formula", {formula});
+  if (!r.ok) { alert("Formula error: " + r.error); return; }
+  state.custom.push({abbr, formula}); renderCustom(); $("#cxAbbr").value = $("#cxFormula").value = ""; saveLocal();
+};
+function renderCustom() {
+  $("#cxList").innerHTML = state.custom.map((c, i) => `<span class="badge">${esc(c.abbr)} = <span class="mono">${esc(c.formula)}</span> <a href="#" data-rmcx="${i}">✕</a></span>`).join("");
+  $$("[data-rmcx]").forEach(a => a.onclick = e => { e.preventDefault(); state.custom.splice(+a.dataset.rmcx, 1); renderCustom(); saveLocal(); });
+  ixCount(); renderRasterLayers();
+}
+
+/* ---------- rasters ---------- */
+function renderRasterLayers() {
+  const prev = new Set($$("#rasLayers input:checked").map(i => i.value));
+  const ix = [...$$("#ixGrid input:checked").map(i => i.value), ...state.custom.map(c => c.abbr)];
+  const bm = bandMap();
+  const extra = [["PlantHeight_m", "Plant height (CHM)"], ["DTM_m", "Generated DTM"], ["VegetationMask", "Vegetation mask"]];
+  if (!state.scan || "T" in bm) extra.push(["Thermal_C", "Thermal (°C)"]);
+  $("#rasLayers").innerHTML = [...ix.map(a => [a, a + " index"]), ...extra].map(([k, n]) =>
+    `<label class="chip ${prev.has(k) ? "on" : ""}"><input type="checkbox" value="${esc(k)}" ${prev.has(k) ? "checked" : ""}><div><b>${esc(n)}</b><div class="d">${esc(k)}.tif</div></div></label>`).join("");
+  bindChips("#rasLayers", saveLocal);
+}
+$("#rasOn").onchange = () => $("#rasOpts").classList.toggle("hidden", !$("#rasOn").checked);
+$("#rasAll").onclick = () => { $$("#rasLayers input").forEach(i => { i.checked = true; i.closest(".chip").classList.add("on"); }); };
+$("#rasNone").onclick = () => { $$("#rasLayers input").forEach(i => { i.checked = false; i.closest(".chip").classList.remove("on"); }); };
+$("#vizOn").onchange = () => $("#vizOpts").classList.toggle("hidden", !$("#vizOn").checked);
+$("#statsOn").onchange = () => $("#statsOpts").classList.toggle("hidden", !$("#statsOn").checked);
+
+/* ---------- advanced toggles ---------- */
+$$("[data-on]").forEach(i => i.onchange = () => { i.closest("details").classList.toggle("enabled", i.checked); if (i.checked) i.closest("details").open = true; saveLocal(); });
+const advOn = k => $(`[data-on="${k}"]`).checked;
+
+/* ---------- field data ---------- */
+$("#fdLoad").onclick = () => loadField();
+async function loadField(sheet) {
+  const p = $("#fdPath").value.trim(); if (!p) return;
+  try {
+    const r = await api("/api/table", {path: p, sheet});
+    state.field = r;
+    $("#fdOut").classList.remove("hidden");
+    $("#fdSheet").innerHTML = (r.sheets.length ? r.sheets : ["(csv)"]).map(s => `<option ${s === r.sheet ? "selected" : ""}>${esc(s)}</option>`).join("");
+    $("#fdSheet").onchange = () => loadField($("#fdSheet").value);
+    const guess = r.columns.find(c => /plot/i.test(c)) || r.columns[0];
+    $("#fdJoin").innerHTML = r.columns.map(c => `<option ${c === guess ? "selected" : ""}>${esc(c)}</option>`).join("");
+    $("#fdInfo").textContent = `${r.n_rows} rows · numeric: ${r.numeric.join(", ")}`;
+    $("#fdSample").innerHTML = `<tr>${r.columns.map(c => `<th>${esc(c)}</th>`).join("")}</tr>` +
+      r.sample.map(row => `<tr>${r.columns.map(c => `<td>${esc(row[c])}</td>`).join("")}</tr>`).join("");
+    const t = $('[data-on="field"]'); if (!t.checked) { t.checked = true; t.onchange(); }
+  } catch (e) { alert(e.message); }
+}
+
+/* ---------- config ---------- */
+const num = id => { const v = $(id).value; return v === "" ? null : +v; };
+function buildConfig() {
+  const groups = $$("[data-vg]:checked").map(i => i.dataset.vg);
+  const ix = $$("#ixGrid input:checked").map(i => i.value);
+  return {
+    input_folder: $("#inFolder").value.trim(), output_folder: $("#outFolder").value.trim(),
+    band_map: bandMap(),
+    boundary: {path: $("#bndPath").value.trim(), layer: $("#bndLayer").value && $("#bndLayer").value !== "(default)" ? $("#bndLayer").value : null,
+      id_col: $("#idCol").value, group_col: $("#grpCol").value || null, block_col: $("#blkCol").value || null,
+      sowing_col: $("#sowCol").value || null, buffer_m: num("#bufM") || 0},
+    indices: ix, custom_indices: state.custom,
+    spectral_pixels: $("#specPix").value,
+    veg: {ndvi_threshold: num("#vegThr"), min_height: num("#vegMinH")},
+    thermal: {enabled: true, unit: $("#thUnit").value, scale: num("#thScale"), offset: num("#thOffset")},
+    dtm: {work_res: num("#dtmRes"), cell: num("#dtmCell"), percentile: num("#dtmPct"), ndvi_threshold: num("#dtmNdvi")},
+    gpu: {prefer: $("#gpuPrefer").checked, device: num("#gpuDev") || 0}, workers: num("#workers"),
+    stats: {enabled: $("#statsOn").checked, unit: $("#repUnit").value, cell_m: num("#cellM"), n_pixels: num("#nPix"), alpha: num("#alpha")},
+    viz: {enabled: $("#vizOn").checked, dpi: 350, groups, palette: $("#palette").value,
+      fig_vars: $("#figVars").value === "selected" ? [...ix, ...state.custom.map(c => c.abbr), "PlantHeight_m", "Tcanopy_C", "Thermal_C"] : null,
+      per_plot_corr: $("#crPerPlot").checked, workers: num("#workers")},
+    rasters: {enabled: $("#rasOn").checked, layers: $("#rasOn").checked ? $$("#rasLayers input:checked").map(i => i.value) : []},
+    advanced: {
+      stand_count: {enabled: advOn("stand"), method: $("#scMethod").value, min_area_cm2: num("#scMinA"), min_spacing_cm: num("#scSpace"),
+        single_plant_area_cm2: num("#scSingle"), closed_cover: num("#scClosed"), force: $("#scForce").checked},
+      canopy: {enabled: advOn("canopy")},
+      harvest: {enabled: advOn("harvest"), min_height: num("#hvMinH") || 0},
+      length: {enabled: advOn("length"), gap_cm: num("#lnGap")},
+      correlation: {enabled: advOn("corr"), method: $("#crMethod").value},
+      thermal: {enabled: advOn("thermal"), crop: $("#thCrop").value || null, use_weather: $("#thWeather").checked,
+        tair: num("#thTa"), rh: num("#thRh"), twet: num("#thTwet"), tdry: num("#thTdry"),
+        canopy_ndvi: num("#thCanNdvi"), soil_ndvi: num("#thSoilNdvi"), erode_m: num("#thErode")},
+      gdd: {enabled: advOn("gdd"), lat: num("#gdLat"), lon: num("#gdLon"), image_datetime: $("#gdImg").value || null,
+        sowing_date: $("#gdSow").value || null, crop: $("#gdCrop").value, tbase: num("#gdTb"), tupper: num("#gdTu")},
+      field_data: {enabled: advOn("field") && !!$("#fdPath").value, path: $("#fdPath").value.trim(),
+        sheet: state.field?.sheets?.length ? $("#fdSheet").value : null, join_col: $("#fdJoin").value},
+    }
+  };
+}
+function updateRunCheck() {
+  const issues = [];
+  if (!state.scan?.multispectral) issues.push("Scan an input folder with a multispectral orthomosaic (step 1).");
+  if (!state.boundary) issues.push("Load a plot-boundary file and choose the PLOTID column (step 2).");
+  $("#runCheck").innerHTML = issues.length ? issues.map(i => `<div class="note warn" style="margin-bottom:6px">${i}</div>`).join("")
+    : `<div class="note">Ready: ${state.boundary.n_features} plots · ID column <b>${esc($("#idCol").value)}</b> · output → <span class="mono">${esc($("#outFolder").value)}</span></div>`;
+  $("#goRun").classList.toggle("hidden", issues.length > 0 || !!state.job);
+  $("#runBtn").disabled = issues.length > 0 || state.job;
+}
+
+/* persistence (per-viewer convenience only) */
+const PERSIST = ["inFolder", "outFolder", "bndPath", "fdPath", "specPix", "vegThr", "palette", "repUnit", "cellM", "alpha", "gdSow"];
+function saveLocal() { try { const o = {}; PERSIST.forEach(k => o[k] = $("#" + k).value); o.custom = state.custom; localStorage.setItem("ps-form", JSON.stringify(o)); } catch (e) {} }
+function restoreLocal() {
+  try { const o = JSON.parse(localStorage.getItem("ps-form") || "{}"); PERSIST.forEach(k => { if (o[k]) $("#" + k).value = o[k]; });
+    if (o.custom) { state.custom = o.custom; renderCustom(); } } catch (e) {}
+}
+document.addEventListener("change", e => { if (e.target.matches("input,select")) { saveLocal(); updateRunCheck(); } });
+$("#saveCfg").onclick = () => {
+  const blob = new Blob([JSON.stringify(buildConfig(), null, 2)], {type: "application/json"});
+  const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "plotspectra_settings.json"; a.click();
+};
+$("#loadCfg").onchange = async e => {
+  const f = e.target.files[0]; if (!f) return;
+  const c = JSON.parse(await f.text());
+  $("#inFolder").value = c.input_folder || ""; $("#outFolder").value = c.output_folder || ""; $("#bndPath").value = c.boundary?.path || "";
+  state.custom = c.custom_indices || []; renderCustom();
+  await scan(); await loadBoundary(c.boundary?.layer || undefined);
+  if (c.boundary?.id_col) $("#idCol").value = c.boundary.id_col;
+  ["group_col:grpCol", "block_col:blkCol", "sowing_col:sowCol"].forEach(s => { const [k, id] = s.split(":"); if (c.boundary?.[k]) $("#" + id).value = c.boundary[k]; });
+  if (c.indices) renderIndices(new Set(c.indices));
+  const A = c.advanced || {};
+  [["stand", "stand_count"], ["canopy", "canopy"], ["harvest", "harvest"], ["length", "length"], ["corr", "correlation"], ["thermal", "thermal"], ["gdd", "gdd"], ["field", "field_data"]]
+    .forEach(([k, a]) => { const i = $(`[data-on="${k}"]`); i.checked = !!A[a]?.enabled; i.closest("details").classList.toggle("enabled", i.checked); });
+  if (A.field_data?.path) { $("#fdPath").value = A.field_data.path; await loadField(A.field_data.sheet || undefined); if (A.field_data.join_col) $("#fdJoin").value = A.field_data.join_col; }
+  if (A.gdd?.sowing_date) $("#gdSow").value = A.gdd.sowing_date;
+  if (A.gdd?.crop) { $("#gdCrop").value = A.gdd.crop; $("#gdCrop").onchange(); }
+  $("#rasOn").checked = !!c.rasters?.enabled; $("#rasOn").onchange(); renderRasterLayers();
+  (c.rasters?.layers || []).forEach(l => { const i = $(`#rasLayers input[value="${CSS.escape(l)}"]`); if (i) { i.checked = true; i.closest(".chip").classList.add("on"); } });
+  updateRunCheck();
+};
+
+/* ---------- run ---------- */
+let logN = 0, poll = null;
+$("#runBtn").onclick = async () => {
+  const cfg = buildConfig();
+  if (cfg.rasters.enabled && !cfg.rasters.layers.length) { alert("Raster saving is on but no layer is selected."); return; }
+  $("#log").textContent = ""; logN = 0; $("#bar").style.width = "0";
+  $("#s-results").classList.add("hidden");
+  try {
+    const r = await api("/api/run", cfg);
+    state.job = r.job; updateRunCheck();
+    $("#cancelBtn").classList.remove("hidden");
+    poll = setInterval(pollJob, 1000);
+  } catch (e) { $("#log").textContent = "Error: " + e.message; }
+};
+$("#cancelBtn").onclick = () => state.job && api("/api/cancel/" + state.job, {});
+async function pollJob() {
+  let j;
+  try { j = await api(`/api/job/${state.job}?since=${logN}`); } catch (e) { return; }
+  if (j.logs.length) { $("#log").textContent += j.logs.join("\n") + "\n"; logN = j.n_logs; $("#log").scrollTop = 1e9; }
+  $("#bar").style.width = (100 * j.progress).toFixed(1) + "%";
+  $("#runStage").textContent = `${(100 * j.progress).toFixed(0)}% · ${j.stage}`;
+  if (["done", "error", "cancelled"].includes(j.status)) {
+    clearInterval(poll); state.job = null; $("#cancelBtn").classList.add("hidden"); updateRunCheck();
+    if (j.status === "done") { markDone("s-run"); showResults(j.result); }
+    else $("#runStage").innerHTML = `<span style="color:var(--danger)">${esc(j.error)}</span>`;
+  }
+}
+
+/* ---------- results ---------- */
+function showResults(r) {
+  $("#s-results").classList.remove("hidden"); markDone("s-results");
+  $("#xlsxLink").href = fileUrl(r.excel, true);
+  $("#predLink").href = fileUrl(r.predictors_excel, true);
+  $("#openOut").onclick = () => api("/api/open_folder", {path: r.output_folder});
+  $("#kpis").innerHTML = [[r.n_plots, "plots analysed"], [r.errors.length, "plots failed"], [r.figures.length, "figures (350 dpi)"],
+    [r.rasters.length, "GeoTIFF rasters"], [r.backend.split(" - ")[0].toUpperCase(), r.backend.split(" - ")[1] || ""]]
+    .map(([v, l]) => `<div class="kpi"><div class="v">${esc(v)}</div><div class="l">${esc(l)}</div></div>`).join("");
+  $("#rasList").innerHTML = r.rasters.length ? "Rasters: " + r.rasters.map(p => `<a href="${fileUrl(p, true)}">${esc(p.split(/[\\/]/).pop())}</a>`).join(", ") : "";
+  state.figs = r.figures; state.tab = "All"; renderGallery();
+  $("#s-results").scrollIntoView({behavior: "smooth"});
+}
+function visibleFigs() {
+  const q = $("#gSearch").value.trim().toLowerCase();
+  return state.figs.filter(f => (state.tab === "All" || f.group === state.tab) &&
+    (!q || (f.title + " " + f.group + " " + (f.var || "")).toLowerCase().includes(q)));
+}
+function renderGallery() {
+  const groups = ["All", ...new Set(state.figs.map(f => f.group))];
+  $("#gTabs").innerHTML = groups.map(g => `<span class="tab ${g === state.tab ? "on" : ""}" data-tab="${esc(g)}">${esc(g)}<span class="c">${g === "All" ? state.figs.length : state.figs.filter(f => f.group === g).length}</span></span>`).join("");
+  $$("[data-tab]").forEach(t => t.onclick = () => { state.tab = t.dataset.tab; renderGallery(); });
+  const v = visibleFigs();
+  $("#gallery").innerHTML = v.map((f, i) => `<div class="fig" data-i="${i}"><img loading="lazy" src="${fileUrl(f.thumb || f.path)}" alt="${esc(f.title)}">
+    <div class="cap">${esc(f.title)}<small>${esc(f.group)}</small></div></div>`).join("") || `<p class="muted">No figures match.</p>`;
+  $$(".fig").forEach(el => el.onclick = () => openLb(+el.dataset.i));
+}
+$("#gSearch").oninput = renderGallery;
+function openLb(i) {
+  const v = visibleFigs(); if (!v.length) return;
+  state.lbIdx = (i + v.length) % v.length; const f = v[state.lbIdx];
+  $("#lbImg").src = fileUrl(f.path); $("#lbImg").classList.remove("zoom");
+  $("#lbTitle").textContent = `${f.title} — ${f.group} (${state.lbIdx + 1}/${v.length})`;
+  $("#lbDl").href = fileUrl(f.path, true); $("#lb").classList.add("open");
+}
+$("#lbClose").onclick = () => $("#lb").classList.remove("open");
+$("#lbPrev").onclick = () => openLb(state.lbIdx - 1);
+$("#lbNext").onclick = () => openLb(state.lbIdx + 1);
+$("#lbImg").onclick = () => $("#lbImg").classList.toggle("zoom");
+document.addEventListener("keydown", e => {
+  if (!$("#lb").classList.contains("open")) return;
+  if (e.key === "Escape") $("#lbClose").onclick(); if (e.key === "ArrowLeft") openLb(state.lbIdx - 1); if (e.key === "ArrowRight") openLb(state.lbIdx + 1);
+});
+
+init();
+</script>
+</body>
+</html>

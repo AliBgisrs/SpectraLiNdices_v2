@@ -1,0 +1,18 @@
+* text=auto
+*.bat text eol=crlf
+*.command text eol=lf
+*.sh text eol=lf
+*.py text
+*.html text
+*.md text
+*.json text
+*.tif binary
+*.tiff binary
+*.png binary
+*.jpg binary
+*.gpkg binary
+*.shp binary
+*.shx binary
+*.dbf binary
+*.xlsx binary
+*.zip binary
