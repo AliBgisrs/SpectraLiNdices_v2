@@ -38,7 +38,7 @@ GDD or weather-based thermal analysis.
 
 ## Install and start
 
-1. Download the app: on this GitHub page open **Releases** and download `PlotSpectra_app_v1.1.zip` (0.14 MB), or use
+1. Download the app: on this GitHub page open **Releases** and download `PlotSpectra_app_v1.2.zip` (0.14 MB), or use
    *Code → Download ZIP*. The sample field used for development is also in the release, as 15 parts; `DOWNLOAD_AND_USE.md`
    there explains how to join them. You do not need it to analyse your own data.
 2. Unzip to any folder, e.g. `Documents\PlotSpectra`.
