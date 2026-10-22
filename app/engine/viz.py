@@ -564,6 +564,35 @@ def fig_height_panel(d, plots, out, dpi):
     return _save(f, os.path.join(out, "height_panel_dsm_dtm_chm.png"), dpi)
 
 
+def fig_sam_map(d, plots, polys, out, dpi):
+    """Every MobileSAM plant polygon over the RGB mosaic, zoomed to the counted plots."""
+    if polys is None or len(polys) == 0:
+        return None
+    counted = plots[plots.PLOTID.isin(polys.PLOTID.unique())]
+    minx, miny, maxx, maxy = counted.total_bounds
+    pad = 0.05 * max(maxx - minx, maxy - miny)
+    ext = (minx - pad, maxx + pad, miny - pad, maxy + pad)
+    ar = (ext[3] - ext[2]) / (ext[1] - ext[0])
+    W = 8.0 if ar < 1.2 else 6.0
+    f = _fig(W, min(11, max(4, W * ar)))
+    ax = f.add_subplot(111)
+    if d.rgb is not None:
+        ax.imshow(d.rgb, extent=d.extent, interpolation="bilinear")
+    polys.plot(ax=ax, facecolor="none", edgecolor="yellow", linewidth=0.35)
+    plots.boundary.plot(ax=ax, color="white", lw=0.5)
+    n = polys.groupby("PLOTID").size()
+    for pid, g in zip(counted.PLOTID, counted.geometry):
+        c = g.representative_point()
+        ax.text(c.x, c.y, f"{pid}\n{n.get(pid, 0)}", ha="center", va="center", fontsize=6, color="white",
+                path_effects=[matplotlib.patheffects.withStroke(linewidth=1.5, foreground="black")])
+    ax.set_xlim(ext[:2])
+    ax.set_ylim(ext[2:])
+    _scalebar_north(ax, ext)
+    _map_axes_fmt(ax)
+    ax.set_title(f"MobileSAM plant detections – {len(polys)} plants in {len(counted)} plots (label = plot id / count)")
+    return _save(f, os.path.join(out, "sam_detections_map.png"), dpi)
+
+
 def fig_gdd(weather, gdd_df, crop_info, out, dpi):
     if weather is None or gdd_df is None or gdd_df.empty or "Sowing_date" not in gdd_df:
         return None
@@ -788,6 +817,9 @@ def make_all(job, out, plots, tables, var_names, sel, stat_res, pair_res, corr, 
         if "CanopyCover_pct" in adv_df and "PlantHeight_m" in mean:
             T(fig_scatter, (adv_df["CanopyCover_pct"], mean["PlantHeight_m"], "Canopy cover (%)", "Plant height (m)",
                             "cover_vs_height.png", out, dpi), "Canopy cover vs height", "Canopy structure")
+    if getattr(job, "sam_polys", None) is not None:
+        collect(*_task("fig_sam_map", (d, plots_l, job.sam_polys, out, dpi), {}, PALETTE, ALPHA, out,
+                       FIG_FOLDERS["Canopy structure"]), "MobileSAM detections map", "Canopy structure", "StandCount")
     qc_dir = os.path.join(out, FIG_FOLDERS["Canopy structure"], "sam_qc")
     if os.path.isdir(qc_dir):
         for fn in sorted(os.listdir(qc_dir)):

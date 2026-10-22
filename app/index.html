@@ -298,11 +298,12 @@ pre.log{background:#0f1512;color:#cfe3d8;border-radius:10px;padding:12px;height:
       <div class="grid g4" style="margin-top:8px">
         <label class="f">SAM mode<select id="samMode"><option value="prompted">Prompted by NDVI peaks (fast, recommended)</option><option value="automatic">Automatic grid (slower, no seeds)</option></select></label>
         <label class="f">Max. plant area (cm²) <span class="muted">blank = ¼ of plot</span><input type="number" id="samMaxA" placeholder="auto"></label>
-        <label class="f">QC overlay images (plots)<input type="number" id="samQc" value="12" min="0" max="200"></label>
+        <label class="f">QC overlay images <span class="muted">blank = every counted plot</span><input type="number" id="samQc" placeholder="all" min="0"></label>
+        <label class="switch" style="margin-top:22px"><input type="checkbox" id="samLayers" checked><span class="t"></span>Save segmentation layers (GeoTIFF per plot + GeoPackage of plant polygons)</label>
         <label class="switch" style="margin-top:22px"><input type="checkbox" id="samSplit" checked><span class="t"></span>Split clump masks by single-plant area</label>
         <div class="row" style="align-self:end"><button class="btn" id="samInstall">Install MobileSAM</button></div>
       </div>
-      <p class="muted" style="margin:8px 0 0">Prompted mode places one point prompt on every NDVI peak inside the plot and keeps the smallest SAM mask covering it, so touching plants are split. Masks much larger than the field's single-plant area are counted as clumps (area ÷ single-plant area) when the split switch is on. Runs on the GPU when PyTorch sees one (well under a second per plot), otherwise on the CPU (5–10 s per plot). Install downloads PyTorch (CPU build, ~200 MB) and the 40 MB MobileSAM weights once. Check the <em>sam_qc</em> overlays in the gallery.</p>
+      <p class="muted" style="margin:8px 0 0">Prompted mode places one point prompt on every NDVI peak inside the plot and keeps the smallest SAM mask covering it, so touching plants are split. Masks much larger than the field's single-plant area are counted as clumps (area ÷ single-plant area) when the split switch is on. Runs on the GPU when PyTorch sees one (well under a second per plot), otherwise on the CPU (5–10 s per plot). Install downloads PyTorch (CPU build, ~200 MB) and the 40 MB MobileSAM weights once. Outputs: an overlay image per counted plot and a field-wide detections map in the gallery, <span class="mono">segmentation/sam_plants.gpkg</span> (one polygon per plant with plot id and area, plus a per-plot canopy layer) and <span class="mono">segmentation/plots/plants_plot_&lt;id&gt;.tif</span> (plant-id raster per plot) for GIS; and SAM-based canopy cover and harvestable-area ratio in <em>Canopy_Structure</em>.</p>
       <pre id="samLog" class="log hidden" style="height:120px;margin-top:8px"></pre>
     </div></div></details>
 
@@ -689,6 +690,7 @@ function buildConfig() {
     advanced: {
       stand_count: {enabled: advOn("stand"), method: $("#scMethod").value, min_area_cm2: num("#scMinA"), min_spacing_cm: num("#scSpace"),
         sam_mode: $("#samMode").value, max_area_cm2: num("#samMaxA"), qc_plots: num("#samQc"), sam_split: $("#samSplit").checked,
+        save_layers: $("#samLayers").checked,
         single_plant_area_cm2: num("#scSingle"), closed_cover: num("#scClosed"), force: $("#scForce").checked},
       canopy: {enabled: advOn("canopy")},
       harvest: {enabled: advOn("harvest"), min_height: num("#hvMinH") || 0},
@@ -783,7 +785,8 @@ function showResults(r) {
   $("#kpis").innerHTML = [[r.n_plots, "plots analysed"], [r.errors.length, "plots failed"], [r.figures.length, "figures (350 dpi)"],
     [r.rasters.length, "GeoTIFF rasters"], [r.backend.split(" - ")[0].toUpperCase(), r.backend.split(" - ")[1] || ""]]
     .map(([v, l]) => `<div class="kpi"><div class="v">${esc(v)}</div><div class="l">${esc(l)}</div></div>`).join("");
-  $("#rasList").innerHTML = r.rasters.length ? "Rasters: " + r.rasters.map(p => `<a href="${fileUrl(p, true)}">${esc(p.split(/[\\/]/).pop())}</a>`).join(", ") : "";
+  $("#rasList").innerHTML = (r.rasters.length ? "Rasters: " + r.rasters.map(p => `<a href="${fileUrl(p, true)}">${esc(p.split(/[\\/]/).pop())}</a>`).join(", ") : "") +
+    (r.segmentation && r.segmentation.gpkg ? ` · Segmentation: <a href="${fileUrl(r.segmentation.gpkg, true)}">sam_plants.gpkg</a> (${r.segmentation.n_plants} plants in ${r.segmentation.n_plots} plots, ${r.segmentation.tifs.length} per-plot GeoTIFFs in segmentation/plots/)` : "");
   state.figs = r.figures; state.tab = "All"; renderGallery();
   $("#s-results").scrollIntoView({behavior: "smooth"});
 }

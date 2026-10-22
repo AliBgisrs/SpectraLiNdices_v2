@@ -205,3 +205,33 @@ def overlay(chip, label, out_path, title=""):
     ax.set_yticks([])
     f.savefig(out_path, dpi=200, facecolor="white")
     return out_path
+
+
+def plant_polygons(label, transform, crs, plot_id, px):
+    """Vector polygons of every plant mask (one row per instance) in map coordinates."""
+    import geopandas as gpd
+    from rasterio.features import shapes
+    from shapely.geometry import shape
+    rows = []
+    for geom, val in shapes(label.astype(np.int32), mask=label > 0, transform=transform):
+        g = shape(geom)
+        rows.append({"PLOTID": str(plot_id), "plant_id": int(val), "area_cm2": float(g.area * 1e4),
+                     "cx": g.centroid.x, "cy": g.centroid.y, "geometry": g})
+    if not rows:
+        return None
+    gdf = gpd.GeoDataFrame(rows, crs=crs)
+    # one plant can vectorise into several pieces at the pixel level -> dissolve by plant id
+    gdf = gdf.dissolve(by=["PLOTID", "plant_id"], aggfunc={"area_cm2": "sum", "cx": "first", "cy": "first"}).reset_index()
+    return gdf
+
+
+def write_label_tif(label, transform, crs, path):
+    """Georeferenced plant-ID raster for one plot (0 = no plant, n = plant n)."""
+    import rasterio
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    prof = dict(driver="GTiff", height=label.shape[0], width=label.shape[1], count=1, dtype="int32", crs=crs,
+                transform=transform, nodata=0, compress="deflate")
+    with rasterio.open(path, "w", **prof) as dst:
+        dst.write(label.astype(np.int32), 1)
+        dst.update_tags(DESCRIPTION="MobileSAM plant instances; value = plant id within plot")
+    return path

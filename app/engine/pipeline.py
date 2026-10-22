@@ -271,6 +271,13 @@ class PlotProcessor:
                     c["sam_max_area_cm2"], device_pref="cuda" if c["bk"].is_gpu or c["sam_gpu"] else "auto")
                 out["stand"].update(n_sam=n_sam, sam_info=info, areas_px=info["areas_px"])  # SAM masks define plant size
                 lab = lab_sam  # SAM instances also feed the plant-length metrics
+                # the segmentation layer itself: canopy area from the masks, polygons, per-plot GeoTIFF
+                sam_canopy = (lab_sam > 0) & inside
+                out["stand"]["sam_canopy_m2"] = float(sam_canopy.sum() * px * px)
+                if c["sam_layers_dir"]:
+                    out["sam_polys"] = sam_count.plant_polygons(lab_sam, wt, ms.crs, row.PLOTID, px)
+                    out["sam_tif"] = sam_count.write_label_tif(
+                        lab_sam, wt, ms.crs, os.path.join(c["sam_layers_dir"], "plots", f"plants_plot_{row.PLOTID}.tif"))
                 if c["sam_qc_dir"] and self.ctx["sam_qc_count"][0] < c["sam_qc_max"]:
                     with self.ctx["sam_qc_lock"]:
                         if self.ctx["sam_qc_count"][0] < c["sam_qc_max"]:
@@ -442,8 +449,9 @@ def run(job: Job):
         "sam_gpu": bool(_dget(adv, "stand_count.sam_gpu", True)),
         "closed_cover": float(_dget(adv, "stand_count.closed_cover", 60.0)),
         "stand_force": bool(_dget(adv, "stand_count.force", False)),
-        "sam_qc_dir": None, "sam_qc_max": int(_dget(adv, "stand_count.qc_plots", 12)),
+        "sam_qc_dir": None, "sam_qc_max": int(_dget(adv, "stand_count.qc_plots") or 10**6),  # blank = every plot
         "sam_split": bool(_dget(adv, "stand_count.sam_split", True)),
+        "sam_layers_dir": None, "sam_save_layers": bool(_dget(adv, "stand_count.save_layers", True)),
         "sam_qc_count": [0], "sam_qc_lock": threading.Lock(),
         "min_area_cm2": float(_dget(adv, "stand_count.min_area_cm2", 20.0)),
         "min_spacing_cm": float(_dget(adv, "stand_count.min_spacing_cm", 5.0)),
@@ -469,6 +477,9 @@ def run(job: Job):
             job.log(f"MobileSAM loaded on {dev} ({ctx['sam_mode']} mode)")
             ctx["sam_qc_dir"] = os.path.join(fig_dir, "08_canopy_structure", "sam_qc")
             os.makedirs(ctx["sam_qc_dir"], exist_ok=True)
+            if ctx["sam_save_layers"]:
+                ctx["sam_layers_dir"] = os.path.join(out_dir, "segmentation")
+                os.makedirs(os.path.join(ctx["sam_layers_dir"], "plots"), exist_ok=True)
     var_names = [BAND_VARS[k] for k in BAND_VARS if k in band_map] + [s["abbr"] for s in sel if not s.get("hidden")]
     if "T" in band_map:
         var_names += ["Thermal_C", "Tcanopy_C", "Tsoil_C"]
@@ -532,6 +543,26 @@ def run(job: Job):
                 r["advanced"]["SinglePlantArea_cm2"] = single * px * px * 1e4
                 r["advanced"]["StandCount_method"] = {"sam": "MobileSAM " + ctx["sam_mode"], "peaks": "NDVI peaks",
                                                       "blob": "object area"}[ctx["stand_method"]]
+                if rec.get("sam_canopy_m2") is not None:  # SAM-based canopy / harvestable area (plant masks only)
+                    a_plot = rec["area_m2"] or np.nan
+                    r["advanced"]["SAM_CanopyArea_m2"] = rec["sam_canopy_m2"]
+                    r["advanced"]["SAM_CanopyCover_pct"] = 100.0 * rec["sam_canopy_m2"] / a_plot
+                    r["advanced"]["SAM_HarvestableArea_ratio"] = rec["sam_canopy_m2"] / a_plot
+    sam_layers = {}
+    if ctx.get("sam_layers_dir"):
+        polys = [r["sam_polys"] for r in results if r.get("sam_polys") is not None]
+        if polys:
+            import geopandas as gpd
+            allp = gpd.GeoDataFrame(pd.concat(polys, ignore_index=True), crs=polys[0].crs)
+            gpkg = os.path.join(ctx["sam_layers_dir"], "sam_plants.gpkg")
+            allp.to_file(gpkg, layer="plants", driver="GPKG")
+            per_plot = allp.dissolve(by="PLOTID", aggfunc={"plant_id": "count", "area_cm2": "sum"}).reset_index() \
+                .rename(columns={"plant_id": "n_plants", "area_cm2": "canopy_cm2"})
+            per_plot.to_file(gpkg, layer="plant_canopy_by_plot", driver="GPKG")
+            sam_layers = {"gpkg": gpkg, "n_plants": int(len(allp)), "n_plots": int(allp.PLOTID.nunique()),
+                          "tifs": sorted(r["sam_tif"] for r in results if r.get("sam_tif"))}
+            job.log(f"Segmentation layers: {sam_layers['n_plants']} plant polygons in {sam_layers['n_plots']} plots -> {gpkg}")
+            job.sam_polys = allp
     adv_df = pd.DataFrame([r["advanced"] for r in results], index=pd.Index(ids, name="PLOTID"))
     group_series, block_series = None, None
     if b.get("group_col"):
@@ -800,4 +831,5 @@ def run(job: Job):
     job.result_partial = None
     job.set(1.0, f"Done in {time.time() - t_start:.0f} s")
     return {"excel": xlsx, "predictors_excel": pred_xlsx, "figures": figs, "rasters": ras, "n_plots": len(results), "errors": errors,
+            "segmentation": sam_layers,
             "backend": f"{bk.kind} - {bk.device_name}", "output_folder": out_dir}

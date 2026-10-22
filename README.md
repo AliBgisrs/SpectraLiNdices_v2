@@ -268,7 +268,7 @@ the GPU path is implemented but was **not run here**.
 
 | Module | Method |
 |---|---|
-| Stand count | Three methods. *Object area*: connected components, clumps split by a field-wide single-plant area learned from open plots. *NDVI peaks*: local maxima with a minimum spacing. **MobileSAM** (Zhang et al. 2023, the 10 MB "Segment Anything" distillation): each NDVI peak inside the plot becomes a point prompt; the smallest SAM mask covering it is kept, duplicates (IoU > 0.5), soil-dominated and out-of-size masks are dropped; masks larger than 1.8 × the single-plant area are counted as clumps (area ÷ single-plant area). An automatic-grid mode needs no seeds. Instances, prompts and mean mask area are reported, and QC overlays (`figures/08_canopy_structure/sam_qc/`) show every outline. Optional install from the app (PyTorch CPU build ≈ 200 MB + 40 MB weights); uses CUDA when PyTorch has it. Closed canopies (>60 % cover) are reported as *not estimable* with every method. |
+| Stand count | Three methods. *Object area*: connected components, clumps split by a field-wide single-plant area learned from open plots. *NDVI peaks*: local maxima with a minimum spacing. **MobileSAM** (Zhang et al. 2023, the 10 MB "Segment Anything" distillation): each NDVI peak inside the plot becomes a point prompt; the smallest SAM mask covering it is kept, duplicates (IoU > 0.5), soil-dominated and out-of-size masks are dropped; masks larger than 1.8 × the single-plant area are counted as clumps (area ÷ single-plant area). An automatic-grid mode needs no seeds. Instances, prompts and mean mask area are reported; the plant masks also give `SAM_CanopyArea_m2`, `SAM_CanopyCover_pct` and `SAM_HarvestableArea_ratio` (plant area ÷ plot area, independent of the NDVI threshold). The detections themselves are saved: an overlay per counted plot and a field-wide detections map in the gallery, and the `segmentation/` folder with a GeoPackage of plant polygons and a plant-id GeoTIFF per plot. Optional install from the app (PyTorch CPU build ≈ 200 MB + 40 MB weights); uses CUDA when PyTorch has it. Closed canopies (>60 % cover) are reported as *not estimable* with every method. |
 | Canopy cover / volume | Vegetation fraction; Σ(height × pixel area) |
 | Harvestable area | Canopy area (optionally taller than a cutting height) ÷ plot area |
 | Plant / canopy length | Canopy extent along the plot's long axis, row coverage %, gaps longer than a threshold, mean and max plant-object length |
@@ -296,6 +296,9 @@ the GPU path is implemented but was **not run here**.
   `01_overview`, `02_index_maps`, `03_plot_maps`, `04_distributions_tests`, `05_rankings`, `06_plant_height`,
   `07_thermal`, `08_canopy_structure`, `09_correlation` (+ `per_plot`), `10_gdd`, `11_field_data`;
   gallery thumbnails in `figures/_thumbs/`, index in `figures/manifest.json`
+- `segmentation/` (MobileSAM stand counting only): `sam_plants.gpkg` with one polygon per detected plant (plot id,
+  plant id, area, centroid) and a per-plot canopy layer, plus `plots/plants_plot_<id>.tif`, a georeferenced plant-id
+  raster for every counted plot. Open them in QGIS/ArcGIS over the orthomosaic.
 - `rasters/*.tif`, only if requested
 - `last_config.json`. The *Save settings* / *Load* buttons reuse a configuration.
 

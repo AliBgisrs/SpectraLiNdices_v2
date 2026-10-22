@@ -63,7 +63,7 @@ def write_workbook(path, tables, stat_sheets, height_pct, adv_df, thermal_df, th
         rows += [(stat_sheets[k], f"{stat_sheets[k]} of every variable per plot (rows = PLOTID)") for k in stat_sheets]
         rows += [("PixelCount", "Number of pixels used for each variable and plot"),
                  ("PlantHeight_Pctl", "Upper percentiles of plant height (p90/p95/p99 are the usual 'plot height')"),
-                 ("Canopy_Structure", "Canopy cover, area, volume, harvestable area, stand count, canopy/plant length"),
+                 ("Canopy_Structure", "Canopy cover, area, volume, harvestable area, stand count, canopy/plant length; with MobileSAM also SAM_instances, SAM_CanopyArea_m2, SAM_CanopyCover_pct, SAM_HarvestableArea_ratio (from the plant masks; polygons in segmentation/sam_plants.gpkg)"),
                  ("Thermal_Advanced / Thermal_References", "Canopy temperature indicators (CTD, CWSI, Ig, I3, NRCT) and field wet/dry references + QC flags"),
                  ("GDD / Weather_Daily", "Growing degree days per plot and the downloaded daily weather"),
                  ("Stats_Design / Stats_Omnibus", "Test design + omnibus test per variable (p, BH across variables, effect size)"),
